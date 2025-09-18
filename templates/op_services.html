@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Расчет кровопотери</title>
+    <link rel="stylesheet" href="/static/styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Кнопка домой -->
+        <a href="/" class="home-btn">
+            <img src="http://localhost:9000/blood-loss-images/home-icon.png" alt="Домой">
+        </a>
+
+        <!-- Горизонтальная линия -->
+        <div class="horizontal-line"></div>
+
+        <!-- Поиск -->
+        <form action="/" method="GET" class="search-form">
+            <input type="text" name="query" placeholder="" value="{{ .query }}">
+            <button type="submit">Поиск</button>
+        </form>
+
+        <!-- Карточка заявки -->
+        <a href="/cart" class="cart-card">
+            <div class="cart-image">
+                <img src="http://localhost:9000/blood-loss-images/cart-image.png" alt="Заявка">
+            </div>
+            <div class="cart-info">
+                <p>Услуг: {{ len .cart.Items }}</p>
+            </div>
+        </a>
+
+        <!-- Список услуг -->
+        <div class="services-grid">
+            {{ range .services }}
+            <a href="/service/{{ .ID }}" class="service-card">
+                <div class="service-image">
+                    <img src="http://localhost:9000/blood-loss-images/{{ .ImageURL }}" alt="{{ .Title }}">
+                </div>
+                <div class="service-content">
+                    <h3>{{ .Title }}</h3>
+                    <p class="coefficient">Коэффициент кровопотери: {{ .BloodLossCoeff }}</p>
+                </div>
+            </a>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>
