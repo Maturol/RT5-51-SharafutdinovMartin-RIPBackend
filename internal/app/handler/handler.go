@@ -20,34 +20,34 @@ func NewHandler(r *repository.Repository) *Handler {
 }
 
 // Главная страница со списком услуг
-func (h *Handler) GetServices(ctx *gin.Context) {
-	var services []repository.Service
+func (h *Handler) GetOperations(ctx *gin.Context) {
+	var operations []repository.Operation
 	var err error
 
-	searchQuery := ctx.Query("query")
-	if searchQuery == "" {
-		services, err = h.Repository.GetServices()
+	searchOperationSearch := ctx.Query("operationsearch")
+	if searchOperationSearch == "" {
+		operations, err = h.Repository.GetOperations()
 		if err != nil {
 			logrus.Error(err)
 		}
 	} else {
-		services, err = h.Repository.GetServicesByTitle(searchQuery)
+		operations, err = h.Repository.GetOperationsByTitle(searchOperationSearch)
 		if err != nil {
 			logrus.Error(err)
 		}
 	}
 
-	cart := h.Repository.GetCart()
+	bloodlosscalc := h.Repository.GetBloodlosscalc()
 
-	ctx.HTML(http.StatusOK, "op_services.html", gin.H{
-		"services": services,
-		"cart":     cart,
-		"query":    searchQuery,
+	ctx.HTML(http.StatusOK, "operations.html", gin.H{
+		"operations":      operations,
+		"bloodlosscalc":   bloodlosscalc,
+		"operationsearch": searchOperationSearch,
 	})
 }
 
 // Страница услуги
-func (h *Handler) GetService(ctx *gin.Context) {
+func (h *Handler) GetOperation(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -56,33 +56,41 @@ func (h *Handler) GetService(ctx *gin.Context) {
 		return
 	}
 
-	service, err := h.Repository.GetService(id)
+	operation, err := h.Repository.GetOperation(id)
 	if err != nil {
 		logrus.Error(err)
 		ctx.Redirect(http.StatusFound, "/")
 		return
 	}
 
-	ctx.HTML(http.StatusOK, "op_service.html", gin.H{
-		"service": service,
+	ctx.HTML(http.StatusOK, "operation.html", gin.H{
+		"operation": operation,
 	})
 }
 
 // Страница заявки
-func (h *Handler) GetCart(ctx *gin.Context) {
-	cart := h.Repository.GetCart()
+func (h *Handler) GetBloodlosscalc(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		logrus.Error("invalid bloodlosscalc id:", err)
+		ctx.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	bloodlosscalc := h.Repository.GetBloodlosscalcByID(id)
 
 	// Получаем полную информацию об услугах в заявке
-	var cartServices []repository.Service
-	for _, item := range cart.Items {
-		service, err := h.Repository.GetService(item.ServiceID)
+	var bloodlosscalcOperations []repository.Operation
+	for _, item := range bloodlosscalc.Items {
+		operation, err := h.Repository.GetOperation(item.OperationID)
 		if err == nil {
-			cartServices = append(cartServices, service)
+			bloodlosscalcOperations = append(bloodlosscalcOperations, operation)
 		}
 	}
 
-	ctx.HTML(http.StatusOK, "op_calc.html", gin.H{
-		"cart":     cart,
-		"services": cartServices,
+	ctx.HTML(http.StatusOK, "blood_loss_calc.html", gin.H{
+		"bloodlosscalc": bloodlosscalc,
+		"operations":    bloodlosscalcOperations,
 	})
 }

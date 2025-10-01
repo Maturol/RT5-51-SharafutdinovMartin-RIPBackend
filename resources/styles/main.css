@@ -78,7 +78,7 @@ body {
     flex-shrink: 0;
 }
 
-.cart-card {
+.bloodlosscalc-card {
     width: 172px;
     height: 169px;
     background: white;
@@ -91,31 +91,31 @@ body {
     display: block;
 }
 
-.cart-image {
+.bloodlosscalc-image {
     width: 100px;
     height: 108px;
     margin: 11px auto 0 auto;
     overflow: hidden;
 }
 
-.cart-image img {
+.bloodlosscalc-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.cart-info {
+.bloodlosscalc-info {
     text-align: center;
     margin-top: 5px;
 }
 
-.cart-info p {
+.bloodlosscalc-info p {
     margin: 0;
     font-size: 1.1rem;
     color: #000000;
 }
 
-.services-grid {
+.operations-grid {
     display: grid;
     grid-template-columns: repeat(3, 464px);
     gap: 25px;
@@ -125,7 +125,7 @@ body {
     margin-right: auto;
 }
 
-.service-card {
+.operation-card {
     width: 464px;
     height: 422px;
     background: white;
@@ -136,24 +136,24 @@ body {
     text-decoration: none;
 }
 
-.service-image {
+.operation-image {
     width: 464px;
     height: 268px;
     overflow: hidden;
 }
 
-.service-image img {
+.operation-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.service-content {
+.operation-content {
     padding: 20px;
     text-align: center;
 }
 
-.service-content h3 {
+.operation-content h3 {
     color: #000000;
     margin-bottom: 10px;
     font-size: 20px;
@@ -165,7 +165,7 @@ body {
 
 /* ===== СТРАНИЦА УСЛУГИ ===== */
 
-.service-image-large {
+.operation-image-large {
     width: 100%;
     max-width: 862px;
     height: 498px;
@@ -175,45 +175,45 @@ body {
     border-radius: 2px;
 }
 
-.service-image-large img {
+.operation-image-large img {
     width: 100%;
     height: 100%;
     object-fit: cover;
 }
 
-.service-info {
+.operation-info {
     text-align: center;
     margin: 0 auto 40px auto;
     width: 290px;
 }
 
-.service-info h2 {
+.operation-info h2 {
     color: #000000;
     margin-bottom: 20px;
     font-size: 24px;
 }
 
-.service-stats {
+.operation-stats {
     text-align: left;
     margin: 0 auto 20px auto;
     width: 100%;
     max-width: 862px;
 }
 
-.service-stat {
+.operation-stat {
     margin-bottom: 15px;
     color: #000000;
     white-space: nowrap;
 }
 
-.service-description {
+.operation-description {
     text-align: left;
     margin: 0 auto;
     width: 100%;
     max-width: 862px;
 }
 
-.service-description-content {
+.operation-description-content {
     color: #000000;
     line-height: 1.8;
     white-space: normal;
@@ -255,15 +255,17 @@ body {
     color:#000000;
 }
 
-/* Cart Items */
-.cart-items {
+/* Bloodlosscalc Items */
+.bloodlosscalc-items {
     display: flex;
     flex-direction: column;
     gap: 20px;
     align-items: flex-start;
+    position: relative;
+    right: 150px;
 }
 
-.cart-item {
+.bloodlosscalc-item {
     display: flex;
     align-items: flex-start;
     width: 100%;
@@ -271,10 +273,9 @@ body {
     gap: 40px;
 }
 
-.cart-item-left {
+.bloodlosscalc-item-left {
     display: flex;
     gap: 23px;
-    width: 843px;
     border: 1px solid #112E51;
     border-radius: 2px;
     background: white;
@@ -296,8 +297,18 @@ body {
 }
 
 .item-info {
-    flex-shrink: 0;
-    width: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.item-info-horizontal {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+}
+
+.item-info-horizontal p {
+    margin: 0;
 }
 
 .item-info h3 {
@@ -380,13 +391,13 @@ body {
 
 
 @media (max-width: 1600px) {
-    .cart-item {
+    .bloodlosscalc-item {
         max-width: 1200px;
     }
 }
 
 @media (max-width: 1400px) {
-    .cart-item {
+    .bloodlosscalc-item {
         max-width: 1100px;
     }
     
@@ -406,13 +417,13 @@ body {
 }
 
 @media (max-width: 1200px) {
-    .cart-item {
+    .bloodlosscalc-item {
         flex-direction: column;
         gap: 30px;
         max-width: 848px;
     }
     
-    .cart-item-left {
+    .bloodlosscalc-item-left {
         width: 100%;
     }
     
@@ -424,7 +435,7 @@ body {
 }
 
 @media (max-width: 900px) {
-    .cart-item-left {
+    .bloodlosscalc-item-left {
         flex-direction: column;
         gap: 20px;
         padding: 20px;
@@ -482,7 +493,7 @@ body {
         align-items: center;
     }
     
-    .cart-item-left {
+    .bloodlosscalc-item-left {
         padding: 15px;
     }
     

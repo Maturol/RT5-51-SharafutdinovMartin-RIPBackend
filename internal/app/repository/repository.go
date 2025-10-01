@@ -6,8 +6,8 @@ import (
 )
 
 type Repository struct {
-	services []Service
-	cart     Cart
+	operations    []Operation
+	bloodlosscalc Bloodlosscalc
 }
 
 func NewRepository() (*Repository, error) {
@@ -17,7 +17,7 @@ func NewRepository() (*Repository, error) {
 }
 
 func (r *Repository) initializeTestData() {
-	r.services = []Service{
+	r.operations = []Operation{
 		{
 			ID:             1,
 			Title:          "Кесарево сечение",
@@ -29,7 +29,7 @@ func (r *Repository) initializeTestData() {
 		{
 			ID:             2,
 			Title:          "Эндопротезирование тазобедренного сустава",
-			ImageURL:       "hip_replacement.png",
+			ImageURL:       "hip_replacement.jpg",
 			BloodLossCoeff: 0.22,
 			AvgBloodLoss:   800,
 			Description:    "Замена поврежденных частей тазобедренного сустава на искусственные имплантаты",
@@ -52,20 +52,20 @@ func (r *Repository) initializeTestData() {
 		},
 	}
 
-	r.cart = Cart{
+	r.bloodlosscalc = Bloodlosscalc{
 		ID:     1,
 		Height: 1.75,
 		Weight: 70,
-		Items: []CartItem{
+		Items: []BloodlosscalcItem{
 			{
-				ServiceID:       1,
+				OperationID:     1,
 				HbBefore:        140,
 				HbAfter:         120,
 				SurgeryDuration: 2,
 				BloodLossResult: 350,
 			},
 			{
-				ServiceID:       3,
+				OperationID:     3,
 				HbBefore:        145,
 				HbAfter:         130,
 				SurgeryDuration: 3,
@@ -76,7 +76,7 @@ func (r *Repository) initializeTestData() {
 	}
 }
 
-type Service struct {
+type Operation struct {
 	ID             int
 	Title          string
 	ImageURL       string
@@ -85,46 +85,53 @@ type Service struct {
 	Description    string
 }
 
-type CartItem struct {
-	ServiceID       int
+type BloodlosscalcItem struct {
+	OperationID     int
 	HbBefore        float64
 	HbAfter         float64
 	SurgeryDuration float64
 	BloodLossResult float64
 }
 
-type Cart struct {
+type Bloodlosscalc struct {
 	ID             int
 	Height         float64
 	Weight         float64
-	Items          []CartItem
+	Items          []BloodlosscalcItem
 	TotalBloodLoss float64
 }
 
 // Методы для работы с услугами
-func (r *Repository) GetService(id int) (Service, error) {
-	for _, service := range r.services {
-		if service.ID == id {
-			return service, nil
+func (r *Repository) GetOperation(id int) (Operation, error) {
+	for _, operation := range r.operations {
+		if operation.ID == id {
+			return operation, nil
 		}
 	}
-	return Service{}, fmt.Errorf("услуга не найдена")
+	return Operation{}, fmt.Errorf("услуга не найдена")
 }
 
-func (r *Repository) GetServices() ([]Service, error) {
-	return r.services, nil
+func (r *Repository) GetOperations() ([]Operation, error) {
+	return r.operations, nil
 }
 
-func (r *Repository) GetServicesByTitle(title string) ([]Service, error) {
-	var result []Service
-	for _, service := range r.services {
-		if strings.Contains(strings.ToLower(service.Title), strings.ToLower(title)) {
-			result = append(result, service)
+func (r *Repository) GetOperationsByTitle(title string) ([]Operation, error) {
+	var result []Operation
+	for _, operation := range r.operations {
+		if strings.Contains(strings.ToLower(operation.Title), strings.ToLower(title)) {
+			result = append(result, operation)
 		}
 	}
 	return result, nil
 }
 
-func (r *Repository) GetCart() Cart {
-	return r.cart
+func (r *Repository) GetBloodlosscalc() Bloodlosscalc {
+	return r.bloodlosscalc
+}
+
+func (r *Repository) GetBloodlosscalcByID(id int) Bloodlosscalc {
+	if r.bloodlosscalc.ID == id {
+		return r.bloodlosscalc
+	}
+	return Bloodlosscalc{}
 }

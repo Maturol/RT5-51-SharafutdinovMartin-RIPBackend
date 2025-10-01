@@ -18,28 +18,28 @@
 
         <!-- Поиск -->
         <form action="/" method="GET" class="search-form">
-            <input type="text" name="query" placeholder="" value="{{ .query }}">
+            <input type="text" name="operationsearch" placeholder="" value="{{ .operationsearch }}">
             <button type="submit">Поиск</button>
         </form>
 
         <!-- Карточка заявки -->
-        <a href="/cart" class="cart-card">
-            <div class="cart-image">
-                <img src="http://localhost:9000/blood-loss-images/cart-image.png" alt="Заявка">
+        <a href="/bloodlosscalc/{{ .bloodlosscalc.ID }}" class="bloodlosscalc-card">
+            <div class="bloodlosscalc-image">
+                <img src="http://localhost:9000/blood-loss-images/bloodlosscalc-image.png" alt="Заявка">
             </div>
-            <div class="cart-info">
-                <p>Услуг: {{ len .cart.Items }}</p>
+            <div class="bloodlosscalc-info">
+                <p>Услуг: {{ len .bloodlosscalc.Items }}</p>
             </div>
         </a>
 
         <!-- Список услуг -->
-        <div class="services-grid">
-            {{ range .services }}
-            <a href="/service/{{ .ID }}" class="service-card">
-                <div class="service-image">
+        <div class="operations-grid">
+            {{ range .operations }}
+            <a href="/operation/{{ .ID }}" class="operation-card">
+                <div class="operation-image">
                     <img src="http://localhost:9000/blood-loss-images/{{ .ImageURL }}" alt="{{ .Title }}">
                 </div>
-                <div class="service-content">
+                <div class="operation-content">
                     <h3>{{ .Title }}</h3>
                     <p class="coefficient">Коэффициент кровопотери: {{ .BloodLossCoeff }}</p>
                 </div>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .service.Title }}</title>
+    <title>{{ .operation.Title }}</title>
     <link rel="stylesheet" href="/static/styles/main.css">
 </head>
 <body>
@@ -17,24 +17,24 @@
         <div class="horizontal-line"></div>
 
         <!-- Изображение услуги -->
-        <div class="service-image-large">
-            <img src="http://localhost:9000/blood-loss-images/{{ .service.ImageURL }}" alt="{{ .service.Title }}">
+        <div class="operation-image-large">
+            <img src="http://localhost:9000/blood-loss-images/{{ .operation.ImageURL }}" alt="{{ .operation.Title }}">
         </div>
         
         <!-- Информация об услуге -->
-        <div class="service-info">
-            <h2>{{ .service.Title }}</h2>
+        <div class="operation-info">
+            <h2>{{ .operation.Title }}</h2>
         </div>
 
         <!-- Характеристики -->
-        <div class="service-stats">
-            <p class="service-stat">Коэффициент кровопотери: {{ .service.BloodLossCoeff }}</p>
-            <p class="service-stat">Средний объем кровопотери: {{ .service.AvgBloodLoss }} мл</p>
+        <div class="operation-stats">
+            <p class="operation-stat">Коэффициент кровопотери: {{ .operation.BloodLossCoeff }}</p>
+            <p class="operation-stat">Средний объем кровопотери: {{ .operation.AvgBloodLoss }} мл</p>
         </div>
 
         <!-- Описание -->
-        <div class="service-description">
-    <span class="service-description-content">Описание операции: {{ .service.Description }}</span>
+        <div class="operation-description">
+    <span class="operation-description-content">Описание операции: {{ .operation.Description }}</span>
         </div>
     </div>
 </body>

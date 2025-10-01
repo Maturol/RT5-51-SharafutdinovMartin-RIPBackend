@@ -20,31 +20,33 @@
         <div class="patient-data">
             <div class="input-group">
                 <label>Рост (м):</label>
-                <input type="number" step="0.01" value="{{ .cart.Height }}" disabled>
+                <input type="number" step="0.01" value="{{ .bloodlosscalc.Height }}" disabled>
             </div>
             <div class="input-group">
                 <label>Вес (кг):</label>
-                <input type="number" step="0.01" value="{{ .cart.Weight }}" disabled>
+                <input type="number" step="0.01" value="{{ .bloodlosscalc.Weight }}" disabled>
             </div>
         </div>
 
         <!-- Список операций -->
-        <div class="cart-items">
-            {{ range $index, $item := .cart.Items }}
-            {{ $service := index $.services $index }}
-            <div class="cart-item">
+        <div class="bloodlosscalc-items">
+            {{ range $index, $item := .bloodlosscalc.Items }}
+            {{ $operation := index $.operations $index }}
+            <div class="bloodlosscalc-item">
                 <!-- ЛЕВАЯ ЧАСТЬ С РАМКОЙ -->
-                <div class="cart-item-left">
+                <div class="bloodlosscalc-item-left">
                     <!-- Изображение -->
                     <div class="item-image">
-                        <img src="http://localhost:9000/blood-loss-images/{{ $service.ImageURL }}" alt="{{ $service.Title }}">
+                        <img src="http://localhost:9000/blood-loss-images/{{ $operation.ImageURL }}" alt="{{ $operation.Title }}">
                     </div>
                     
                     <!-- Информация об операции -->
                     <div class="item-info">
-                        <h3>{{ $service.Title }}</h3>
-                        <p>Коэффициент кровопотери: {{ $service.BloodLossCoeff }}</p>
-                        <p>Средний объем кровопотери: {{ $service.AvgBloodLoss }} мл</p>
+                        <h3>{{ $operation.Title }}</h3>
+                        <div class="item-info-horizontal">
+                            <p>Коэффициент кровопотери: {{ $operation.BloodLossCoeff }}</p>
+                            <p>Средний объем кровопотери: {{ $operation.AvgBloodLoss }} мл</p>
+                        </div>
                     </div>
                 </div>
 
