@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заявка</title>
+    <link rel="stylesheet" href="/static/styles/main.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Кнопка домой -->
+        <a href="/" class="home-btn">
+            <img src="http://localhost:9000/blood-loss-images/home-icon.png" alt="Домой">
+        </a>
+
+        <!-- Горизонтальная линия -->
+        <div class="horizontal-line"></div>
+
+        <!-- Данные пациента -->
+        <div class="patient-data">
+            <div class="input-group">
+                <label>Рост (м):</label>
+                <input type="number" step="0.01" value="{{ .bloodlosscalc.Height }}" disabled>
+            </div>
+            <div class="input-group">
+                <label>Вес (кг):</label>
+                <input type="number" step="0.01" value="{{ .bloodlosscalc.Weight }}" disabled>
+            </div>
+        </div>
+
+        <!-- Список операций -->
+        <div class="bloodlosscalc-items">
+            {{ range $index, $item := .bloodlosscalc.Items }}
+            {{ $operation := index $.operations $index }}
+            <div class="bloodlosscalc-item">
+                <!-- ЛЕВАЯ ЧАСТЬ С РАМКОЙ -->
+                <div class="bloodlosscalc-item-left">
+                    <!-- Изображение -->
+                    <div class="item-image">
+                        <img src="http://localhost:9000/blood-loss-images/{{ $operation.ImageURL }}" alt="{{ $operation.Title }}">
+                    </div>
+                    
+                    <!-- Информация об операции -->
+                    <div class="item-info">
+                        <h3>{{ $operation.Title }}</h3>
+                        <div class="item-info-horizontal">
+                            <p>Коэффициент кровопотери: {{ $operation.BloodLossCoeff }}</p>
+                            <p>Средний объем кровопотери: {{ $operation.AvgBloodLoss }} мл</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Поля ввода и результаты (СПРАВА БЕЗ РАМКИ) -->
+                <div class="item-inputs">
+                    <div class="input-field">
+                        <label>Уровень гемоглобина до операции (г/л):</label>
+                        <input type="number" value="{{ $item.HbBefore }}" disabled>
+                    </div>
+                    <div class="input-field">
+                        <label>Уровень гемоглобина после операции (г/л):</label>
+                        <input type="number" value="{{ $item.HbAfter }}" disabled>
+                    </div>
+                    <div class="input-field">
+                        <label>Длительность операции (ч):</label>
+                        <input type="number" value="{{ $item.SurgeryDuration }}" disabled>
+                    </div>
+                    <div class="item-result">
+                        <span class="item-result-text">Объем кровопотери:</span>
+                        <span class="item-result-value">{{ printf "%.0f" $item.BloodLossResult }} мл</span>
+                    </div>
+                </div>
+            </div>
+            {{ end }}
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,507 @@
+/* ===== ОБЩИЕ СТИЛИ ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    line-height: 1.6;
+    color: #000000;
+    background-color: #ffffff;
+    margin: 0;
+    overflow: auto;
+}
+
+.container {
+    width: 100%;
+    max-width: 1886px;
+    margin: 0 auto;
+    padding: 33px 239px 0 239px;
+    position: relative;
+}
+
+.home-btn {
+    position: absolute;
+    top: 33px;
+    left: 239px;
+    width: 81px;
+    height: 82px;
+    z-index: 1000;
+}
+
+.home-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.horizontal-line {
+    height: 1px;
+    background: #112E51;
+    margin: 82px 0 77px 0;
+    width: 100%;
+}
+
+/* ===== СТРАНИЦА УСЛУГ ===== */
+
+.search-form {
+    display: flex;
+    margin: 77px auto 52px auto;
+    width: 100%;
+    max-width: 1096px;
+    justify-content: center;
+}
+
+.search-form input {
+    flex: 1;
+    max-width: 980px;
+    height: 44px;
+    padding: 10px;
+    border: 1px solid #112E51;
+    border-radius: 2px 0 0 2px;
+    border-right: none;
+    font-size: 20px;
+}
+
+.search-form button {
+    width: 116px;
+    height: 44px;
+    background: #147662;
+    color: white;
+    border: 1px solid #112E51;
+    border-left: none;
+    border-radius: 0 2px 2px 0;
+    cursor: pointer;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.bloodlosscalc-card {
+    width: 172px;
+    height: 169px;
+    background: white;
+    border: 1px solid #112E51;
+    border-radius: 2px;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: none;
+    margin: 0 auto 30px auto;
+    display: block;
+}
+
+.bloodlosscalc-image {
+    width: 100px;
+    height: 108px;
+    margin: 11px auto 0 auto;
+    overflow: hidden;
+}
+
+.bloodlosscalc-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bloodlosscalc-info {
+    text-align: center;
+    margin-top: 5px;
+}
+
+.bloodlosscalc-info p {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #000000;
+}
+
+.operations-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 464px);
+    gap: 25px;
+    margin-bottom: 50px;
+    justify-content: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.operation-card {
+    width: 464px;
+    height: 422px;
+    background: white;
+    border: 1px solid #112E51;
+    border-radius: 2px;
+    overflow: hidden;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.operation-image {
+    width: 464px;
+    height: 268px;
+    overflow: hidden;
+}
+
+.operation-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.operation-content {
+    padding: 20px;
+    text-align: center;
+}
+
+.operation-content h3 {
+    color: #000000;
+    margin-bottom: 10px;
+    font-size: 20px;
+}
+
+.coefficient {
+    color: #000000;
+}
+
+/* ===== СТРАНИЦА УСЛУГИ ===== */
+
+.operation-image-large {
+    width: 100%;
+    max-width: 862px;
+    height: 498px;
+    overflow: hidden;
+    margin: 0 auto 34px auto;
+    border: 1px solid #112E51;
+    border-radius: 2px;
+}
+
+.operation-image-large img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.operation-info {
+    text-align: center;
+    margin: 0 auto 40px auto;
+    width: 290px;
+}
+
+.operation-info h2 {
+    color: #000000;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.operation-stats {
+    text-align: left;
+    margin: 0 auto 20px auto;
+    width: 100%;
+    max-width: 862px;
+}
+
+.operation-stat {
+    margin-bottom: 15px;
+    color: #000000;
+    white-space: nowrap;
+}
+
+.operation-description {
+    text-align: left;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 862px;
+}
+
+.operation-description-content {
+    color: #000000;
+    line-height: 1.8;
+    white-space: normal;
+}
+
+/* ===== СТРАНИЦА ЗАЯВКИ ===== */
+
+.patient-data {
+    display: flex;
+    gap: 94px;
+    margin: 0 auto 54px auto;
+    white-space: nowrap;
+    justify-content: center;
+    width: fit-content;
+    flex-wrap: wrap;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 20px;
+}
+
+.input-group label {
+    color: #000000;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.input-group input {
+    width: 220px;
+    height: 33px;
+    padding: 8px;
+    border: 1px solid #112E51;
+    border-radius: 2px;
+    background: white;
+    font-size: 20px;
+    color:#000000;
+}
+
+/* Bloodlosscalc Items */
+.bloodlosscalc-items {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: flex-start;
+    position: relative;
+    right: 150px;
+}
+
+.bloodlosscalc-item {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 1400px;
+    gap: 40px;
+}
+
+.bloodlosscalc-item-left {
+    display: flex;
+    gap: 23px;
+    border: 1px solid #112E51;
+    border-radius: 2px;
+    background: white;
+    padding: 17px;
+    flex-shrink: 0;
+}
+
+.item-image {
+    width: 305px;
+    height: 187px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-info-horizontal {
+    display: flex;
+    flex-direction: row;
+    gap: 15px;
+}
+
+.item-info-horizontal p {
+    margin: 0;
+}
+
+.item-info h3 {
+    color: #000000;
+    margin-bottom: 15px;
+    font-size: 24px;
+    white-space: nowrap;
+}
+
+.item-info p {
+    color: #000000;
+    margin-bottom: 10px;
+    font-size: 20px;
+    white-space: nowrap;
+}
+
+.item-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    flex: 1;
+    min-width: 500px;
+    padding: 10px 0;
+}
+
+.input-field {
+    display: flex;
+    align-items: center;
+    gap: 180px;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.input-field label {
+    color: #000000;
+    font-weight: 500;
+    font-size: 20px;
+    white-space: nowrap;
+    width: 280px;
+    flex-shrink: 0;
+}
+
+.input-field input {
+    width: 220px;
+    height: 33px;
+    padding: 5px 10px;
+    border: 1px solid #112E51;
+    border-radius: 2px;
+    background: white;
+    font-size: 20px;
+    flex-shrink: 0;
+    color: #000000;
+}
+
+.item-result {
+    display: flex;
+    align-items: center;
+    margin-top: 5px;
+    white-space: nowrap;
+    width: 100%;
+}
+
+.item-result-text {
+    color: #000000;
+    font-weight: 500;
+    font-size: 24px;
+    white-space: nowrap;
+    width: 280px;
+    flex-shrink: 0;
+}
+
+.item-result-value {
+    color: #000000;
+    font-weight: bold;
+    font-size: 24px;
+    white-space: nowrap;
+    width: 220px;
+    flex-shrink: 0;
+}
+
+
+@media (max-width: 1600px) {
+    .bloodlosscalc-item {
+        max-width: 1200px;
+    }
+}
+
+@media (max-width: 1400px) {
+    .bloodlosscalc-item {
+        max-width: 1100px;
+    }
+    
+    .item-inputs {
+        min-width: 450px;
+    }
+    
+    .input-field label,
+    .item-result-text {
+        width: 250px;
+    }
+    
+    .input-field input,
+    .item-result-value {
+        width: 200px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .bloodlosscalc-item {
+        flex-direction: column;
+        gap: 30px;
+        max-width: 848px;
+    }
+    
+    .bloodlosscalc-item-left {
+        width: 100%;
+    }
+    
+    .item-inputs {
+        min-width: auto;
+        width: 100%;
+        padding-left: 20px;
+    }
+}
+
+@media (max-width: 900px) {
+    .bloodlosscalc-item-left {
+        flex-direction: column;
+        gap: 20px;
+        padding: 20px;
+    }
+    
+    .item-image {
+        width: 100%;
+        height: 200px;
+    }
+    
+    .item-info {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .item-inputs {
+        padding-left: 0;
+    }
+    
+    .input-field {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .input-field label {
+        width: auto;
+        text-align: left;
+    }
+    
+    .input-field input {
+        width: 100%;
+    }
+    
+    .item-result {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .item-result-text {
+        width: auto;
+        text-align: left;
+    }
+    
+    .item-result-value {
+        width: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .patient-data {
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+    }
+    
+    .bloodlosscalc-item-left {
+        padding: 15px;
+    }
+    
+    .item-image {
+        height: 180px;
+    }
+    
+    .item-inputs {
+        min-width: auto;
+    }
+}
