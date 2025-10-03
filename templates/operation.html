@@ -1,41 +1,36 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ .operation.Title }}</title>
-    <link rel="stylesheet" href="/static/styles/main.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ .operation.Title }}</title>
+  <link rel="stylesheet" href="/static/styles/main.css">
 </head>
 <body>
-    <div class = "container">
-        <!-- Кнопка домой -->
-        <a href="/" class="home-btn">
-            <img src="http://localhost:9000/blood-loss-images/home-icon.png" alt="Домой">
-        </a>
+  <div class="container">
+   
+    <a href="/" class="home-btn">
+      <img src="http://localhost:9000/blood-loss-images/home-icon.png" alt="Домой">
+    </a>
 
-        <!-- Горизонтальная линия -->
-        <div class="horizontal-line"></div>
+    <div class="horizontal-line"></div>
 
-        <!-- Изображение услуги -->
-        <div class="operation-image-large">
-            <img src="http://localhost:9000/blood-loss-images/{{ .operation.ImageURL }}" alt="{{ .operation.Title }}">
-        </div>
-        
-        <!-- Информация об услуге -->
-        <div class="operation-info">
-            <h2>{{ .operation.Title }}</h2>
-        </div>
-
-        <!-- Характеристики -->
-        <div class="operation-stats">
-            <p class="operation-stat">Коэффициент кровопотери: {{ .operation.BloodLossCoeff }}</p>
-            <p class="operation-stat">Средний объем кровопотери: {{ .operation.AvgBloodLoss }} мл</p>
-        </div>
-
-        <!-- Описание -->
-        <div class="operation-description">
-    <span class="operation-description-content">Описание операции: {{ .operation.Description }}</span>
-        </div>
+    <div class="operation-image-large">
+      <img src="http://localhost:9000/blood-loss-images/{{ .operation.ImageURL }}" alt="{{ .operation.Title }}">
     </div>
+
+    <div class="operation-info">
+      <h2>{{ .operation.Title }}</h2>
+    </div>
+
+    <div class="operation-stats">
+      <p class="operation-stat">Коэффициент кровопотери: {{ .operation.BloodLossCoeff }}</p>
+      <p class="operation-stat">Средний объем кровопотери: {{ .operation.AvgBloodLoss }} мл</p>
+    </div>
+
+    <div class="operation-description">
+      <span class="operation-description-content">Описание операции: {{ .operation.Description }}</span>
+    </div>
+  </div>
 </body>
 </html>

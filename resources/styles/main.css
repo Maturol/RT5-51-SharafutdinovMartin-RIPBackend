@@ -14,6 +14,106 @@ body {
     overflow: auto;
 }
 
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    text-decoration: none;
+    text-align: center;
+    border: 1px solid #112E51;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    min-width: 120px;
+}
+
+/* Кнопка "Подробнее" - нейтральная */
+.btn-detail {
+    background: #ffffff;
+    color: #112E51;
+    border: 1px solid #112E51;
+}
+
+.btn-detail:hover {
+    background: #f5f5f5;
+    color: #112E51;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(17, 46, 81, 0.2);
+}
+
+/* Кнопка "Добавить в заявку" - акцентная зеленая */
+.btn-add {
+    background: #147662;
+    color: #ffffff;
+    border: 1px solid #147662;
+}
+
+.btn-add:hover {
+    background: #0f5a4a;
+    border: 1px solid #0f5a4a;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(20, 118, 98, 0.3);
+}
+
+/* Кнопка "Удалить заявку" - опасная красная */
+.btn-delete {
+    background: #dc3545;
+    color: #ffffff;
+    border: 1px solid #dc3545;
+}
+
+.btn-delete:hover {
+    background: #c82333;
+    border: 1px solid #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Активное состояние */
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Блок кнопок в операциях */
+.operation-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+    flex-wrap: wrap;
+}
+
+.operation-actions .btn {             
+    height: 44px;          
+    display: flex;            
+    align-items: center;     
+    justify-content: center; 
+    text-decoration: none;  
+    box-sizing: border-box;
+}
+
+.operation-actions form {
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+}
+
+/* Кнопка удаления заявки - отдельные стили */
+.delete-request-form {
+    display: inline-block;
+    margin: 20px auto 40px auto;
+}
+
+.delete-request-form .btn-delete {
+    padding: 12px 30px;
+    font-size: 18px;
+    min-width: 200px;
+}
+
 .container {
     width: 100%;
     max-width: 1886px;
@@ -132,7 +232,6 @@ body {
     border: 1px solid #112E51;
     border-radius: 2px;
     overflow: hidden;
-    cursor: pointer;
     text-decoration: none;
 }
 

@@ -1,51 +1,74 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Расчет кровопотери</title>
-    <link rel="stylesheet" href="/static/styles/main.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Расчет кровопотери</title>
+  <link rel="stylesheet" href="/static/styles/main.css">
 </head>
 <body>
-    <div class="container">
-        <!-- Кнопка домой -->
-        <a href="/" class="home-btn">
-            <img src="http://localhost:9000/blood-loss-images/home-icon.png" alt="Домой">
-        </a>
+  <div class="container">
+  
+    <a href="/" class="home-btn">
+      <img src="http://localhost:9000/blood-loss-images/home-icon.png" alt="Домой">
+    </a>
+ 
+    <div class="horizontal-line"></div>
 
-        <!-- Горизонтальная линия -->
-        <div class="horizontal-line"></div>
+    <!-- Поиск -->
+    <form action="/" method="GET" class="search-form">
+      <input type="text" name="operationsearch" placeholder="" value="{{ .operationsearch }}">
+      <button type="submit">Поиск</button>
+    </form>
 
-        <!-- Поиск -->
-        <form action="/" method="GET" class="search-form">
-            <input type="text" name="operationsearch" placeholder="" value="{{ .operationsearch }}">
-            <button type="submit">Поиск</button>
-        </form>
-
-        <!-- Карточка заявки -->
-        <a href="/bloodlosscalc/{{ .bloodlosscalc.ID }}" class="bloodlosscalc-card">
-            <div class="bloodlosscalc-image">
-                <img src="http://localhost:9000/blood-loss-images/bloodlosscalc-image.png" alt="Заявка">
-            </div>
-            <div class="bloodlosscalc-info">
-                <p>Услуг: {{ len .bloodlosscalc.Items }}</p>
-            </div>
-        </a>
-
-        <!-- Список услуг -->
-        <div class="operations-grid">
-            {{ range .operations }}
-            <a href="/operation/{{ .ID }}" class="operation-card">
-                <div class="operation-image">
-                    <img src="http://localhost:9000/blood-loss-images/{{ .ImageURL }}" alt="{{ .Title }}">
-                </div>
-                <div class="operation-content">
-                    <h3>{{ .Title }}</h3>
-                    <p class="coefficient">Коэффициент кровопотери: {{ .BloodLossCoeff }}</p>
-                </div>
-            </a>
-            {{ end }}
-        </div>
+    {{if .hasActiveRequest}}
+    <a href="/bloodlosscalc/{{ .currentRequestId }}" class="bloodlosscalc-card">
+      <div class="bloodlosscalc-image">
+        <img src="http://localhost:9000/blood-loss-images/bloodlosscalc-image.png" alt="Заявка">
+      </div>
+      <div class="bloodlosscalc-info">
+        <p>Услуг: {{ .serviceCount }}</p>
+      </div>
+    </a>
+    {{else}}
+    <div class="bloodlosscalc-card" style="opacity: 0.5; cursor: not-allowed;">
+      <div class="bloodlosscalc-image">
+        <img src="http://localhost:9000/blood-loss-images/bloodlosscalc-image.png" alt="Заявка">
+      </div>
+      <div class="bloodlosscalc-info">
+        <p>Услуг: 0</p>
+      </div>
     </div>
+    {{end}}
+
+    <div class="operations-grid">
+      {{ range .operations }}
+      <div class="operation-card">
+        <div class="operation-image">
+          <img src="http://localhost:9000/blood-loss-images/{{ .ImageURL }}" alt="{{ .Title }}">
+        </div>
+        <div class="operation-content">
+          <h3>{{ .Title }}</h3>
+          <p class="coefficient">Коэффициент кровопотери: {{ .BloodLossCoeff }}</p>
+          <div class="operation-actions">
+            <a href="/operation/{{ .ID }}" class="btn btn-detail">Подробнее</a>
+            
+
+            <form method="post" action="/bloodlosscalc/add_operation" style="display: inline;">
+              <input type="hidden" name="operation_id" value="{{ .ID }}">
+              <input type="hidden" name="height" value="1.75">
+              <input type="hidden" name="weight" value="70">
+              <input type="hidden" name="hb_before" value="120">
+              <input type="hidden" name="hb_after" value="100">
+              <input type="hidden" name="duration" value="2.0">
+              <input type="hidden" name="total_loss" value="500">
+              <button type="submit" class="btn btn-add">Добавить в заявку</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {{ end }}
+    </div>
+  </div>
 </body>
 </html>
