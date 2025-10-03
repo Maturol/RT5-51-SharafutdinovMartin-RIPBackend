@@ -42,55 +42,6 @@ type OperationCardWithCart struct {
 	HasActiveCart  bool
 }
 
-// GET / — список операций с опциональным поиском
-func (h Handler) GetOperations(ctx *gin.Context) {
-	operationsearch := ctx.Query("operationsearch")
-
-	var (
-		ops []OperationCard
-		err error
-	)
-
-	if operationsearch == "" {
-		all, e := h.Repository.GetOperations()
-		err = e
-		if err == nil {
-			for _, o := range all {
-				ops = append(ops, OperationCard{
-					ID:             o.ID,
-					Title:          o.Title,
-					ImageURL:       o.ImageURL,
-					BloodLossCoeff: o.BloodLossCoeff,
-				})
-			}
-		}
-	} else {
-		found, e := h.Repository.GetOperationsByTitle(operationsearch)
-		err = e
-		if err == nil {
-			for _, o := range found {
-				ops = append(ops, OperationCard{
-					ID:             o.ID,
-					Title:          o.Title,
-					ImageURL:       o.ImageURL,
-					BloodLossCoeff: o.BloodLossCoeff,
-				})
-			}
-		}
-	}
-
-	if err != nil {
-		h.errorHandler(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	ctx.HTML(http.StatusOK, "operations.html", gin.H{
-		"time":            time.Now().Format("15:04:05"),
-		"operations":      ops,
-		"operationsearch": operationsearch,
-	})
-}
-
 func (h Handler) GetOperation(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, _ := strconv.Atoi(idStr)
@@ -216,27 +167,6 @@ func (h *Handler) GetOperationsWithRequestInfo(ctx *gin.Context) {
 		"hasActiveRequest": hasActiveRequest,
 		"currentRequestId": currentRequestId,
 		"serviceCount":     serviceCount,
-	})
-}
-
-// GET /operation/:id - конкретная операция с информацией о корзине
-func (h *Handler) GetOperationWithCart(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, _ := strconv.Atoi(idStr)
-
-	operation, err := h.Repository.GetOperation(id)
-	if err != nil {
-		h.errorHandler(ctx, http.StatusInternalServerError, err)
-		return
-	}
-
-	userID := h.getCurrentUserID(ctx)
-	_, hasActiveRequest := h.Repository.GetCurrentBloodlosscalc(userID)
-	hasActiveCart := hasActiveRequest == nil
-
-	ctx.HTML(http.StatusOK, "operation.html", gin.H{
-		"operation":     operation,
-		"hasActiveCart": hasActiveCart,
 	})
 }
 
