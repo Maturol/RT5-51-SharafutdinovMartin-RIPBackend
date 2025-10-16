@@ -12,4 +12,7 @@ type Bloodlosscalc struct {
 	ModeratorID   *int
 	PatientHeight *float64 `gorm:"type:numeric(5,2)"`
 	PatientWeight *int
+
+	Creator   User `gorm:"foreignKey:CreatorID"`
+	Moderator User `gorm:"foreignKey:ModeratorID"`
 }
