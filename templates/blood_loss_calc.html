@@ -68,7 +68,12 @@
               </div>
               <div class="item-result">
                 <span class="item-result-text">Объем кровопотери:</span>
-                <span class="item-result-value">{{ $item.TotalBloodLoss }} мл</span>
+                <span class="item-result-value">
+                  {{ if $item.TotalBloodLoss }}
+                    {{ $item.TotalBloodLoss }} мл
+                  {{ else }}
+                    — мл
+                  {{ end }}</span>
               </div>
             </div>
           </div>

@@ -69,7 +69,7 @@ func (r *Repository) GetCurrentBloodlosscalc(userID int) (ds.Bloodlosscalc, erro
 }
 
 // Создание новой заявки для пользователя
-func (r *Repository) CreateBloodlosscalc(userID int, height float64, weight int) (ds.Bloodlosscalc, error) {
+func (r *Repository) CreateBloodlosscalc(userID int, height *float64, weight *int) (ds.Bloodlosscalc, error) {
 	bloodlosscalc := ds.Bloodlosscalc{
 		Status:        "черновик",
 		CreatorID:     userID,
@@ -85,7 +85,7 @@ func (r *Repository) CreateBloodlosscalc(userID int, height float64, weight int)
 }
 
 // Добавление услуги (операции) в заявку
-func (r *Repository) AddOperationToBloodlosscalc(bloodlosscalcID, operationID, hbBefore, hbAfter int, duration float64, totalLoss int) error {
+func (r *Repository) AddOperationToBloodlosscalc(bloodlosscalcID, operationID int, hbBefore, hbAfter *int, duration *float64, totalLoss *int) error {
 	item := ds.BloodlosscalcOperation{
 		BloodlosscalcID: bloodlosscalcID,
 		OperationID:     operationID,

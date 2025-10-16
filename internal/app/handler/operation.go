@@ -21,16 +21,16 @@ type BLItem struct {
 	OperationImage  *string
 	BloodLossCoeff  float64
 	AvgBloodLoss    int
-	HbBefore        int
-	HbAfter         int
-	SurgeryDuration float64
-	TotalBloodLoss  int
+	HbBefore        *int     // Изменено на nullable
+	HbAfter         *int     // Изменено на nullable
+	SurgeryDuration *float64 // Изменено на nullable
+	TotalBloodLoss  *int     // Изменено на nullable
 }
 
 type BloodLossCalcVM struct {
 	ID            int
-	PatientHeight float64
-	PatientWeight int
+	PatientHeight *float64 // Изменено на nullable
+	PatientWeight *int     // Изменено на nullable
 	Items         []BLItem
 }
 
@@ -171,16 +171,37 @@ func (h *Handler) GetOperationsWithRequestInfo(ctx *gin.Context) {
 }
 
 // POST /bloodlosscalc/add_operation - добавление операции в заявку
+// POST /bloodlosscalc/add_operation - добавление операции в заявку
 func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 	userID := h.getCurrentUserID(ctx)
 
 	operationIDStr := ctx.PostForm("operation_id")
 	operationID, _ := strconv.Atoi(operationIDStr)
 
-	hbBefore, _ := strconv.Atoi(ctx.PostForm("hb_before"))
-	hbAfter, _ := strconv.Atoi(ctx.PostForm("hb_after"))
-	duration, _ := strconv.ParseFloat(ctx.PostForm("duration"), 64)
-	totalLoss, _ := strconv.Atoi(ctx.PostForm("total_loss"))
+	// Изменено на обработку nullable полей
+	var hbBefore, hbAfter, totalLoss *int
+	var duration *float64
+
+	if hbBeforeStr := ctx.PostForm("hb_before"); hbBeforeStr != "" {
+		if val, err := strconv.Atoi(hbBeforeStr); err == nil {
+			hbBefore = &val
+		}
+	}
+	if hbAfterStr := ctx.PostForm("hb_after"); hbAfterStr != "" {
+		if val, err := strconv.Atoi(hbAfterStr); err == nil {
+			hbAfter = &val
+		}
+	}
+	if durationStr := ctx.PostForm("duration"); durationStr != "" {
+		if val, err := strconv.ParseFloat(durationStr, 64); err == nil {
+			duration = &val
+		}
+	}
+	if totalLossStr := ctx.PostForm("total_loss"); totalLossStr != "" {
+		if val, err := strconv.Atoi(totalLossStr); err == nil {
+			totalLoss = &val
+		}
+	}
 
 	// Проверяем существование операции
 	_, err := h.Repository.GetOperation(operationID)
@@ -193,8 +214,19 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 	bloodlosscalc, err := h.Repository.GetCurrentBloodlosscalc(userID)
 	if err != nil {
 		// Создаем новую заявку
-		height, _ := strconv.ParseFloat(ctx.PostForm("height"), 64)
-		weight, _ := strconv.Atoi(ctx.PostForm("weight"))
+		var height *float64
+		var weight *int
+
+		if heightStr := ctx.PostForm("height"); heightStr != "" {
+			if val, err := strconv.ParseFloat(heightStr, 64); err == nil {
+				height = &val
+			}
+		}
+		if weightStr := ctx.PostForm("weight"); weightStr != "" {
+			if val, err := strconv.Atoi(weightStr); err == nil {
+				weight = &val
+			}
+		}
 
 		bloodlosscalc, err = h.Repository.CreateBloodlosscalc(userID, height, weight)
 		if err != nil {
@@ -205,6 +237,7 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 
 	// Проверяем дубликаты и добавляем операцию
 	if !h.Repository.OperationExistsInBloodlosscalc(bloodlosscalc.ID, operationID) {
+		// ИСПРАВЛЕННЫЙ ВЫЗОВ - правильный порядок параметров
 		err = h.Repository.AddOperationToBloodlosscalc(bloodlosscalc.ID, operationID, hbBefore, hbAfter, duration, totalLoss)
 		if err != nil {
 			h.errorHandler(ctx, http.StatusInternalServerError, err)

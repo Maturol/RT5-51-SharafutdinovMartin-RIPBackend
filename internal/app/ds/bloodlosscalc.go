@@ -10,6 +10,6 @@ type Bloodlosscalc struct {
 	FormedAt      *time.Time
 	CompletedAt   *time.Time
 	ModeratorID   *int
-	PatientHeight float64 `gorm:"type:numeric(5,2)"`
-	PatientWeight int     `gorm:"not null"`
+	PatientHeight *float64 `gorm:"type:numeric(5,2)"`
+	PatientWeight *int
 }
