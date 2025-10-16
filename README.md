@@ -1,2 +1,2 @@
-Create-and-connect-DB-PostgreSQL
+figma-design-and-backend
 Задание: Создание базы данных PostgreSQL по теме работы, подключение БД к созданным трем шаблонам
