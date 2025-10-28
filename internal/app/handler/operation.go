@@ -127,6 +127,7 @@ func (h Handler) GetBloodlosscalcByID(ctx *gin.Context) {
 		Creator       string   `json:"creator"`
 		Moderator     *string  `json:"moderator"`
 		Items         []BLItem `json:"items"`
+		ServiceCount  *int     `json:"service_count,omitempty"` // Количество услуг (только для завершенных)
 	}
 
 	response := BloodlosscalcDetailResponse{
@@ -144,6 +145,12 @@ func (h Handler) GetBloodlosscalcByID(ctx *gin.Context) {
 
 	if bl.ModeratorID != nil && bl.Moderator.UserID != 0 {
 		response.Moderator = &bl.Moderator.Username
+	}
+
+	// Добавляем количество услуг для завершенных заявок
+	if bl.Status == "завершена" {
+		count := int(h.Repository.CountOperationsInBloodlosscalc(bl.ID))
+		response.ServiceCount = &count
 	}
 
 	ctx.JSON(http.StatusOK, response)
@@ -414,6 +421,7 @@ func (h *Handler) GetBloodlosscalcs(ctx *gin.Context) {
 		PatientWeight  *int     `json:"patient_weight"`
 		CreatorLogin   string   `json:"creator_login"`
 		ModeratorLogin *string  `json:"moderator_login"`
+		ServiceCount   *int     `json:"service_count,omitempty"` // Количество услуг (только для завершенных)
 	}
 
 	var response []BloodlosscalcResponse
@@ -432,6 +440,12 @@ func (h *Handler) GetBloodlosscalcs(ctx *gin.Context) {
 
 		if bl.ModeratorID != nil && bl.Moderator.UserID != 0 {
 			item.ModeratorLogin = &bl.Moderator.Username
+		}
+
+		// Добавляем количество услуг для завершенных заявок
+		if bl.Status == "завершена" {
+			count := int(h.Repository.CountOperationsInBloodlosscalc(bl.ID))
+			item.ServiceCount = &count
 		}
 
 		response = append(response, item)
@@ -758,7 +772,6 @@ func (h *Handler) GetOperationCartInfo(ctx *gin.Context) {
 	currentRequest, err := h.Repository.GetCurrentBloodlosscalc(userID)
 	if err != nil {
 		ctx.JSON(http.StatusOK, gin.H{
-			"has_active_request": false,
 			"current_request_id": 0,
 			"service_count":      0,
 		})
@@ -768,7 +781,6 @@ func (h *Handler) GetOperationCartInfo(ctx *gin.Context) {
 	serviceCount := h.Repository.CountOperationsInBloodlosscalc(currentRequest.ID)
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"has_active_request": true,
 		"current_request_id": currentRequest.ID,
 		"service_count":      serviceCount,
 	})
