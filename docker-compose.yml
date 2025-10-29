@@ -15,12 +15,15 @@ services:
       - DB_NAME=bloodloss_db
       - DB_USER=postgres
       - DB_PASS=12345
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks: 
       - app-network
     restart: unless-stopped
     depends_on:
       - minio
       - postgres
+      - redis
 
   minio:
     image: minio/minio:latest
@@ -67,7 +70,6 @@ services:
     networks:  
       - app-network
     restart: unless-stopped
-  
 
   adminer:
     image: adminer:latest
@@ -79,10 +81,20 @@ services:
       - app-network
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
 
 volumes:
   minio_data:
   postgres_data:
+  redis_data:
 
 networks:  
   app-network:

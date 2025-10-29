@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 )
 
@@ -62,7 +63,245 @@ func formatDatePtr(t *time.Time) *string {
 	return &formatted
 }
 
-func (h Handler) GetOperation(ctx *gin.Context) {
+const jwtPrefix = "Bearer "
+
+// AuthMiddleware с проверкой blacklist
+func (h *Handler) AuthMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// Пропускаем OPTIONS запросы
+		if ctx.Request.Method == "OPTIONS" {
+			ctx.Next()
+			return
+		}
+
+		jwtStr := ctx.GetHeader("Authorization")
+		if !strings.HasPrefix(jwtStr, jwtPrefix) {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Authorization header required",
+			})
+			return
+		}
+
+		jwtStr = jwtStr[len(jwtPrefix):]
+
+		// Проверяем blacklist
+		isBlacklisted, err := h.Repository.IsTokenInBlacklist(ctx.Request.Context(), jwtStr)
+		if err != nil {
+			ctx.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error",
+			})
+			return
+		}
+		if isBlacklisted {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Token is invalidated",
+			})
+			return
+		}
+
+		token, err := jwt.ParseWithClaims(jwtStr, &ds.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+			return []byte("blood_loss_secret_key"), nil
+		})
+
+		if err != nil || !token.Valid {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid token",
+			})
+			return
+		}
+
+		claims, ok := token.Claims.(*ds.JWTClaims)
+		if !ok {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid token claims",
+			})
+			return
+		}
+
+		// Сохраняем в контекст
+		ctx.Set("user_id", claims.UserID)
+		ctx.Set("username", claims.Username)
+		ctx.Set("is_moderator", claims.IsModerator)
+
+		ctx.Next()
+	}
+}
+
+// RequireModerator middleware для проверки прав модератора
+func (h *Handler) RequireModerator() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		isModerator, exists := ctx.Get("is_moderator")
+		if !exists || !isModerator.(bool) {
+			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": "Moderator access required",
+			})
+			return
+		}
+		ctx.Next()
+	}
+}
+
+// Структуры для аутентификации
+type AuthRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type AuthResponse struct {
+	Token     string       `json:"token"`
+	ExpiresAt time.Time    `json:"expires_at"`
+	User      UserResponse `json:"user"`
+}
+
+type UserResponse struct {
+	UserID      int    `json:"user_id"`
+	Username    string `json:"username"`
+	IsModerator bool   `json:"is_moderator"`
+}
+
+// AuthenticateUser godoc
+// @Summary Аутентификация пользователя
+// @Description Вход в систему с получением JWT токена
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param credentials body AuthRequest true "Данные для входа"
+// @Success 200 {object} AuthResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /auth [post]
+func (h *Handler) AuthenticateUser(ctx *gin.Context) {
+	var req AuthRequest
+	if err := ctx.BindJSON(&req); err != nil {
+		h.errorHandler(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	// Ищем пользователя по username
+	user, err := h.Repository.GetUserByUsername(req.Username)
+	if err != nil {
+		h.errorHandler(ctx, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
+		return
+	}
+
+	// Проверяем пароль (без хеширования)
+	if user.Password != req.Password {
+		h.errorHandler(ctx, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
+		return
+	}
+
+	// Создаем JWT токен
+	expiresAt := time.Now().Add(24 * time.Hour)
+	claims := &ds.JWTClaims{
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expiresAt.Unix(),
+			IssuedAt:  time.Now().Unix(),
+			Issuer:    "blood_loss_calc",
+		},
+		UserID:      user.UserID,
+		Username:    user.Username,
+		IsModerator: user.IsModerator,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte("blood_loss_secret_key"))
+	if err != nil {
+		h.errorHandler(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	response := AuthResponse{
+		Token:     tokenString,
+		ExpiresAt: expiresAt,
+		User: UserResponse{
+			UserID:      user.UserID,
+			Username:    user.Username,
+			IsModerator: user.IsModerator,
+		},
+	}
+
+	ctx.JSON(http.StatusOK, response)
+}
+
+// LogoutUser godoc
+// @Summary Выход из системы
+// @Description Завершение сессии пользователя
+// @Tags auth
+// @Security BearerAuth
+// @Success 200 {object} MessageResponse
+// @Router /logout [post]
+func (h *Handler) LogoutUser(ctx *gin.Context) {
+	jwtStr := ctx.GetHeader("Authorization")
+	if !strings.HasPrefix(jwtStr, jwtPrefix) {
+		h.errorHandler(ctx, http.StatusBadRequest, fmt.Errorf("authorization header required"))
+		return
+	}
+
+	jwtStr = jwtStr[len(jwtPrefix):]
+
+	// Парсим токен чтобы узнать его expiration
+	token, err := jwt.ParseWithClaims(jwtStr, &ds.JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte("blood_loss_secret_key"), nil
+	})
+
+	if err != nil || !token.Valid {
+		h.errorHandler(ctx, http.StatusBadRequest, fmt.Errorf("invalid token"))
+		return
+	}
+
+	claims, ok := token.Claims.(*ds.JWTClaims)
+	if !ok {
+		h.errorHandler(ctx, http.StatusBadRequest, fmt.Errorf("invalid token claims"))
+		return
+	}
+
+	// Вычисляем оставшееся время жизни токена
+	expiresAt := time.Unix(claims.ExpiresAt, 0)
+	ttl := time.Until(expiresAt)
+
+	if ttl > 0 {
+		// Добавляем токен в blacklist на оставшееся время
+		err = h.Repository.AddTokenToBlacklist(ctx.Request.Context(), jwtStr, ttl)
+		if err != nil {
+			h.errorHandler(ctx, http.StatusInternalServerError, fmt.Errorf("failed to logout"))
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Logged out successfully",
+	})
+}
+
+// GetUserProfile godoc
+// @Summary Получить профиль пользователя
+// @Description Получение данных текущего пользователя
+// @Tags users
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {object} UserResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /user [get]
+func (h *Handler) GetUserProfile(ctx *gin.Context) {
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		h.errorHandler(ctx, http.StatusUnauthorized, fmt.Errorf("user not authenticated"))
+		return
+	}
+
+	username, _ := ctx.Get("username")
+	isModerator, _ := ctx.Get("is_moderator")
+
+	ctx.JSON(http.StatusOK, UserResponse{
+		UserID:      userID.(int),
+		Username:    username.(string),
+		IsModerator: isModerator.(bool),
+	})
+}
+
+// Остальные методы остаются без изменений, только обновляем те, где есть проверки прав:
+
+func (h *Handler) GetOperation(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -79,7 +318,7 @@ func (h Handler) GetOperation(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, operation)
 }
 
-func (h Handler) GetBloodlosscalcByID(ctx *gin.Context) {
+func (h *Handler) GetBloodlosscalcByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, _ := strconv.Atoi(idStr)
 
@@ -115,7 +354,6 @@ func (h Handler) GetBloodlosscalcByID(ctx *gin.Context) {
 		})
 	}
 
-	// Формируем ответ с форматированными датами
 	type BloodlosscalcDetailResponse struct {
 		ID            int      `json:"id"`
 		Status        string   `json:"status"`
@@ -127,7 +365,7 @@ func (h Handler) GetBloodlosscalcByID(ctx *gin.Context) {
 		Creator       string   `json:"creator"`
 		Moderator     *string  `json:"moderator"`
 		Items         []BLItem `json:"items"`
-		ServiceCount  *int     `json:"service_count,omitempty"` // Количество услуг (только для завершенных)
+		ServiceCount  *int     `json:"service_count,omitempty"`
 	}
 
 	response := BloodlosscalcDetailResponse{
@@ -147,7 +385,6 @@ func (h Handler) GetBloodlosscalcByID(ctx *gin.Context) {
 		response.Moderator = &bl.Moderator.Username
 	}
 
-	// Добавляем количество услуг для завершенных заявок
 	if bl.Status == "завершена" {
 		count := int(h.Repository.CountOperationsInBloodlosscalc(bl.ID))
 		response.ServiceCount = &count
@@ -196,14 +433,12 @@ func (h *Handler) UpdateOperation(ctx *gin.Context) {
 		return
 	}
 
-	// Проверяем существование операции
 	_, err = h.Repository.GetOperation(id)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusNotFound, err)
 		return
 	}
 
-	// Создаем структуру для частичного обновления
 	var updateData struct {
 		Title          *string  `json:"title"`
 		Description    *string  `json:"description"`
@@ -218,7 +453,6 @@ func (h *Handler) UpdateOperation(ctx *gin.Context) {
 		return
 	}
 
-	// Обновляем только переданные поля
 	updates := make(map[string]interface{})
 
 	if updateData.Title != nil {
@@ -240,20 +474,17 @@ func (h *Handler) UpdateOperation(ctx *gin.Context) {
 		updates["avg_blood_loss"] = *updateData.AvgBloodLoss
 	}
 
-	// Если нет полей для обновления
 	if len(updates) == 0 {
 		h.errorHandler(ctx, http.StatusBadRequest, fmt.Errorf("нет полей для обновления"))
 		return
 	}
 
-	// Выполняем частичное обновление
 	err = h.Repository.PartialUpdateOperation(id, updates)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	// Возвращаем обновленную операцию
 	updatedOperation, err := h.Repository.GetOperation(id)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
@@ -385,7 +616,15 @@ func (h *Handler) UploadOperationImage(ctx *gin.Context) {
 	})
 }
 
-// GET /api/bloodlosscalcs - список заявок с фильтрацией
+// GetBloodlosscalcs godoc
+// @Summary Получить заявки
+// @Description Получение списка заявок
+// @Tags bloodlosscalcs
+// @Security BearerAuth
+// @Produce json
+// @Success 200 {array} BloodlosscalcResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /bloodlosscalcs [get]
 func (h *Handler) GetBloodlosscalcs(ctx *gin.Context) {
 	statusFilter := ctx.Query("status")
 	dateFromStr := ctx.Query("date_from")
@@ -404,13 +643,26 @@ func (h *Handler) GetBloodlosscalcs(ctx *gin.Context) {
 		}
 	}
 
-	bloodlosscalcs, err := h.Repository.GetBloodlosscalcsFiltered(statusFilter, dateFrom, dateTo)
+	// Определяем, кто делает запрос
+	userID := h.getCurrentUserID(ctx)
+	isModerator, _ := ctx.Get("is_moderator")
+
+	var bloodlosscalcs []ds.Bloodlosscalc
+	var err error
+
+	if isModerator.(bool) {
+		// Модератор видит все заявки (кроме черновиков и удаленных)
+		bloodlosscalcs, err = h.Repository.GetBloodlosscalcsFiltered(statusFilter, dateFrom, dateTo)
+	} else {
+		// Обычный пользователь видит только свои заявки
+		bloodlosscalcs, err = h.Repository.GetUserBloodlosscalcs(userID, statusFilter, dateFrom, dateTo)
+	}
+
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	// Структура для ответа с форматированными датами
 	type BloodlosscalcResponse struct {
 		ID             int      `json:"id"`
 		Status         string   `json:"status"`
@@ -421,7 +673,7 @@ func (h *Handler) GetBloodlosscalcs(ctx *gin.Context) {
 		PatientWeight  *int     `json:"patient_weight"`
 		CreatorLogin   string   `json:"creator_login"`
 		ModeratorLogin *string  `json:"moderator_login"`
-		ServiceCount   *int     `json:"service_count,omitempty"` // Количество услуг (только для завершенных)
+		ServiceCount   *int     `json:"service_count,omitempty"`
 	}
 
 	var response []BloodlosscalcResponse
@@ -442,7 +694,6 @@ func (h *Handler) GetBloodlosscalcs(ctx *gin.Context) {
 			item.ModeratorLogin = &bl.Moderator.Username
 		}
 
-		// Добавляем количество услуг для завершенных заявок
 		if bl.Status == "завершена" {
 			count := int(h.Repository.CountOperationsInBloodlosscalc(bl.ID))
 			item.ServiceCount = &count
@@ -463,7 +714,6 @@ func (h *Handler) UpdateBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	// Проверяем существование заявки
 	_, err = h.Repository.GetBloodlosscalcByID(id)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusNotFound, err)
@@ -480,7 +730,6 @@ func (h *Handler) UpdateBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	// Создаем карту обновлений
 	updates := make(map[string]interface{})
 
 	if updateData.PatientHeight != nil {
@@ -490,7 +739,6 @@ func (h *Handler) UpdateBloodlosscalc(ctx *gin.Context) {
 		updates["patient_weight"] = updateData.PatientWeight
 	}
 
-	// Если нет полей для обновления
 	if len(updates) == 0 {
 		h.errorHandler(ctx, http.StatusBadRequest, fmt.Errorf("нет полей для обновления"))
 		return
@@ -516,7 +764,6 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 
 	userID := h.getCurrentUserID(ctx)
 
-	// Получаем операцию по ID из URL
 	operation, err := h.Repository.GetOperation(operationID)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusNotFound, fmt.Errorf("operation not found"))
@@ -532,7 +779,6 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 		TotalBloodLoss  *int     `json:"total_blood_loss"`
 	}
 
-	// Биндим данные, но даже если тело пустое - продолжаем
 	if ctx.Request.ContentLength > 0 {
 		if err := ctx.BindJSON(&requestData); err != nil {
 			h.errorHandler(ctx, http.StatusBadRequest, err)
@@ -543,10 +789,8 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 	var bloodlosscalc ds.Bloodlosscalc
 	var isNewRequest bool
 
-	// Пытаемся получить текущую заявку пользователя
 	currentBloodlosscalc, err := h.Repository.GetCurrentBloodlosscalc(userID)
 	if err != nil {
-		// Если нет текущей заявки - создаем новую ПУСТУЮ заявку
 		bloodlosscalc, err = h.Repository.CreateBloodlosscalc(userID, requestData.PatientHeight, requestData.PatientWeight)
 		if err != nil {
 			h.errorHandler(ctx, http.StatusInternalServerError, err)
@@ -554,11 +798,9 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 		}
 		isNewRequest = true
 	} else {
-		// Используем существующую заявку
 		bloodlosscalc = currentBloodlosscalc
 		isNewRequest = false
 
-		// Если переданы новые данные роста/веса - обновляем заявку
 		if requestData.PatientHeight != nil || requestData.PatientWeight != nil {
 			updates := make(map[string]interface{})
 			if requestData.PatientHeight != nil {
@@ -575,13 +817,11 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 		}
 	}
 
-	// Проверяем дубликаты
 	if h.Repository.OperationExistsInBloodlosscalc(bloodlosscalc.ID, operationID) {
 		h.errorHandler(ctx, http.StatusBadRequest, fmt.Errorf("operation already exists in bloodlosscalc"))
 		return
 	}
 
-	// Добавляем операцию в заявку
 	err = h.Repository.AddOperationToBloodlosscalc(
 		bloodlosscalc.ID,
 		operationID,
@@ -595,7 +835,6 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	// Получаем актуальное количество операций в заявке
 	serviceCount := h.Repository.CountOperationsInBloodlosscalc(bloodlosscalc.ID)
 
 	ctx.JSON(http.StatusOK, gin.H{
@@ -624,7 +863,7 @@ func (h *Handler) AddOperationToBloodlosscalc(ctx *gin.Context) {
 	})
 }
 
-// PUT /api/bloodlosscalc/:id/form - формирование заявки
+// PUT /api/bloodlosscalc/:id/form - формирование заявки (создатель)
 func (h *Handler) FormBloodlosscalc(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -633,11 +872,17 @@ func (h *Handler) FormBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	userID := 1 // id модератора
+	userID := h.getCurrentUserID(ctx)
 
 	bloodlosscalc, err := h.Repository.GetBloodlosscalcByID(id)
-	if err != nil || bloodlosscalc.CreatorID == userID {
-		h.errorHandler(ctx, http.StatusForbidden, fmt.Errorf("нет прав для формирования заявки"))
+	if err != nil {
+		h.errorHandler(ctx, http.StatusNotFound, err)
+		return
+	}
+
+	// Проверяем что пользователь - создатель заявки
+	if bloodlosscalc.CreatorID != userID {
+		h.errorHandler(ctx, http.StatusForbidden, fmt.Errorf("только создатель может формировать заявку"))
 		return
 	}
 
@@ -667,7 +912,7 @@ func (h *Handler) FormBloodlosscalc(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Заявка сформирована"})
 }
 
-// PUT /api/bloodlosscalc/:id/complete - завершение заявки
+// PUT /api/bloodlosscalc/:id/complete - завершение заявки (модератор)
 func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -676,12 +921,7 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	userID := 1 //id модератора
-
-	if userID != 1 { // временная заглушка для модератора
-		h.errorHandler(ctx, http.StatusForbidden, fmt.Errorf("только модератор может завершать заявки"))
-		return
-	}
+	// Middleware уже проверил что пользователь модератор
 
 	bloodlosscalc, err := h.Repository.GetBloodlosscalcByID(id)
 	if err != nil {
@@ -694,7 +934,6 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	// Получаем все операции в заявке
 	items, err := h.Repository.GetBloodlosscalcOperations(id)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
@@ -702,9 +941,8 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 	}
 
 	totalBloodLoss := 0.0
-	operationResults := make(map[int]float64) // operationID -> рассчитанная кровопотеря
+	operationResults := make(map[int]float64)
 
-	// Рассчитываем кровопотерю для каждой операции
 	for _, item := range items {
 		operation, err := h.Repository.GetOperation(item.OperationID)
 		if err != nil {
@@ -716,12 +954,9 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 		if item.TotalBloodLoss != nil {
 			operationLoss = float64(*item.TotalBloodLoss)
 		} else {
-			// Если нет данных гемоглобина и времени операции, используем базовый расчет
 			if item.HbBefore == nil || item.HbAfter == nil || item.SurgeryDuration == nil {
-				// Базовый расчет: коэффициент * средняя кровопотеря
 				operationLoss = operation.BloodLossCoeff * float64(operation.AvgBloodLoss)
 			} else {
-				// Расчет по полной формуле Надлера
 				calculatedLoss, err := h.calculateBloodLossByNadler(
 					*bloodlosscalc.PatientHeight,
 					float64(*bloodlosscalc.PatientWeight),
@@ -731,14 +966,12 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 					operation.BloodLossCoeff,
 				)
 				if err != nil {
-					// В случае ошибки расчета используем базовый метод
 					operationLoss = operation.BloodLossCoeff * float64(operation.AvgBloodLoss)
 				} else {
 					operationLoss = calculatedLoss
 				}
 			}
 
-			// Сохраняем рассчитанную кровопотерю в БД
 			calculatedLossInt := int(math.Round(operationLoss))
 			err = h.Repository.UpdateBloodlosscalcOperationTotalLoss(bloodlosscalc.ID, item.OperationID, calculatedLossInt)
 			if err != nil {
@@ -850,111 +1083,6 @@ func (h *Handler) UpdateBloodlosscalcOperation(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Bloodlosscalc operation updated"})
 }
 
-// CalculateTotalBloodLoss - расчет кровопотери по формуле Надлера
-func (h *Handler) CalculateTotalBloodLoss(bloodlosscalcID int) (float64, error) {
-	bloodlosscalc, err := h.Repository.GetBloodlosscalcByID(bloodlosscalcID)
-	if err != nil {
-		return 0, err
-	}
-
-	// Проверяем, что есть данные о росте и весе пациента
-	if bloodlosscalc.PatientHeight == nil || bloodlosscalc.PatientWeight == nil {
-		return 0, fmt.Errorf("для расчета кровопотери необходимы рост и вес пациента")
-	}
-
-	// Получаем все операции в заявке
-	items, err := h.Repository.GetBloodlosscalcOperations(bloodlosscalcID)
-	if err != nil {
-		return 0, err
-	}
-
-	totalBloodLoss := 0.0
-
-	for _, item := range items {
-		operation, err := h.Repository.GetOperation(item.OperationID)
-		if err != nil {
-			continue
-		}
-
-		// Если указана фактическая кровопотеря - используем ее
-		if item.TotalBloodLoss != nil {
-			totalBloodLoss += float64(*item.TotalBloodLoss)
-			continue
-		}
-
-		// Если нет данных гемоглобина и времени операции, используем базовый расчет
-		if item.HbBefore == nil || item.HbAfter == nil || item.SurgeryDuration == nil {
-			// Базовый расчет: коэффициент * средняя кровопотеря
-			operationLoss := operation.BloodLossCoeff * float64(operation.AvgBloodLoss)
-			totalBloodLoss += operationLoss
-			continue
-		}
-
-		// Конвертируем типы для передачи в функцию расчета
-		heightCm := *bloodlosscalc.PatientHeight
-		weightKg := float64(*bloodlosscalc.PatientWeight)
-		hbBefore := *item.HbBefore
-		hbAfter := *item.HbAfter
-		durationHours := *item.SurgeryDuration
-
-		// Расчет по полной формуле Надлера
-		operationLoss, err := h.calculateBloodLossByNadler(
-			heightCm,
-			weightKg,
-			hbBefore,
-			hbAfter,
-			durationHours,
-			operation.BloodLossCoeff,
-		)
-		if err != nil {
-			// В случае ошибки расчета используем базовый метод
-			operationLoss = operation.BloodLossCoeff * float64(operation.AvgBloodLoss)
-		}
-
-		totalBloodLoss += operationLoss
-	}
-
-	return totalBloodLoss, nil
-}
-
-// calculateBloodLossByNadler - расчет кровопотери по формуле Надлера
-func (h *Handler) calculateBloodLossByNadler(heightCm, weightKg float64, hbBefore, hbAfter int, durationHours, bloodLossCoeff float64) (float64, error) {
-	// Проверка валидности входных данных
-	if heightCm <= 0 || weightKg <= 0 {
-		return 0, fmt.Errorf("рост и вес должны быть положительными числами")
-	}
-	if hbBefore <= 0 || hbAfter < 0 {
-		return 0, fmt.Errorf("гемоглобин должен быть положительным числом")
-	}
-	if hbAfter >= hbBefore {
-		return 0, fmt.Errorf("гемоглобин после операции должен быть меньше чем до операции")
-	}
-	if durationHours < 0 {
-		return 0, fmt.Errorf("длительность операции не может быть отрицательной")
-	}
-
-	// Переводим рост из см в метры
-	heightM := heightCm / 100.0
-
-	// 1. Расчет ОЦК (объема циркулирующей крови) по формуле Надлера
-	// ОЦК (мл) = (0.3669 × рост³(м) + 0.03219 × вес(кг) + 0.6041) × 1000
-	bv := (0.3669*math.Pow(heightM, 3) + 0.03219*weightKg + 0.6041) * 1000
-
-	// 2. Расчет объем кровопотери по формуле:
-	// Объем кровопотери (мл) = [ОЦК × (Hbдо - Hbпосле) / Hbдо] × (1 + k × T)
-	hbDrop := float64(hbBefore - hbAfter)
-	baseBloodLoss := bv * (hbDrop / float64(hbBefore))
-
-	// Применяем коэффициент длительности операции
-	// k - коэффициент кровопотери (используем bloodLossCoeff из операции)
-	timeFactor := 1.0 + (bloodLossCoeff * durationHours)
-
-	totalBloodLoss := baseBloodLoss * timeFactor
-
-	// Округляем до целых миллилитров
-	return math.Round(totalBloodLoss), nil
-}
-
 // DELETE /api/bloodlosscalcs/:id - удаление заявки
 func (h *Handler) DeleteBloodlosscalc(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -964,14 +1092,12 @@ func (h *Handler) DeleteBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	// Удаляем через SQL (логическое удаление)
 	err = h.Repository.DeleteBloodlosscalcSQL(bloodlosscalcID)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	// Возвращаем JSON ответ вместо redirect
 	ctx.JSON(http.StatusOK, gin.H{
 		"message":          "Заявка успешно удалена",
 		"bloodlosscalc_id": bloodlosscalcID,
@@ -990,14 +1116,12 @@ func (h *Handler) RegisterUser(ctx *gin.Context) {
 		return
 	}
 
-	// Проверяем, не существует ли уже пользователь с таким username
 	existingUser, err := h.Repository.GetUserByUsername(requestData.Username)
 	if err == nil && existingUser.UserID != 0 {
 		h.errorHandler(ctx, http.StatusBadRequest, fmt.Errorf("пользователь с таким именем уже существует"))
 		return
 	}
 
-	// Сохраняем пароль в открытом виде (без хеширования)
 	newUser := &ds.User{
 		Username:    requestData.Username,
 		Password:    requestData.Password,
@@ -1016,25 +1140,6 @@ func (h *Handler) RegisterUser(ctx *gin.Context) {
 			"user_id":      newUser.UserID,
 			"username":     newUser.Username,
 			"is_moderator": newUser.IsModerator,
-		},
-	})
-}
-
-// GET /api/user - получить профиль пользователя
-func (h *Handler) GetUserProfile(ctx *gin.Context) {
-	userID := h.getCurrentUserID(ctx)
-
-	user, err := h.Repository.GetUserByID(userID)
-	if err != nil {
-		h.errorHandler(ctx, http.StatusNotFound, fmt.Errorf("пользователь не найден"))
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{
-		"user": gin.H{
-			"user_id":      user.UserID,
-			"username":     user.Username,
-			"is_moderator": user.IsModerator,
 		},
 	})
 }
@@ -1092,22 +1197,91 @@ func (h *Handler) UpdateUserProfile(ctx *gin.Context) {
 	})
 }
 
-// POST /api/auth - аутентификация (заглушка)
-func (h *Handler) AuthenticateUser(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Заглушка",
-	})
+// Вспомогательные методы для расчета кровопотери
+func (h *Handler) CalculateTotalBloodLoss(bloodlosscalcID int) (float64, error) {
+	bloodlosscalc, err := h.Repository.GetBloodlosscalcByID(bloodlosscalcID)
+	if err != nil {
+		return 0, err
+	}
+
+	if bloodlosscalc.PatientHeight == nil || bloodlosscalc.PatientWeight == nil {
+		return 0, fmt.Errorf("для расчета кровопотери необходимы рост и вес пациента")
+	}
+
+	items, err := h.Repository.GetBloodlosscalcOperations(bloodlosscalcID)
+	if err != nil {
+		return 0, err
+	}
+
+	totalBloodLoss := 0.0
+
+	for _, item := range items {
+		operation, err := h.Repository.GetOperation(item.OperationID)
+		if err != nil {
+			continue
+		}
+
+		if item.TotalBloodLoss != nil {
+			totalBloodLoss += float64(*item.TotalBloodLoss)
+			continue
+		}
+
+		if item.HbBefore == nil || item.HbAfter == nil || item.SurgeryDuration == nil {
+			operationLoss := operation.BloodLossCoeff * float64(operation.AvgBloodLoss)
+			totalBloodLoss += operationLoss
+			continue
+		}
+
+		heightCm := *bloodlosscalc.PatientHeight
+		weightKg := float64(*bloodlosscalc.PatientWeight)
+		hbBefore := *item.HbBefore
+		hbAfter := *item.HbAfter
+		durationHours := *item.SurgeryDuration
+
+		operationLoss, err := h.calculateBloodLossByNadler(
+			heightCm,
+			weightKg,
+			hbBefore,
+			hbAfter,
+			durationHours,
+			operation.BloodLossCoeff,
+		)
+		if err != nil {
+			operationLoss = operation.BloodLossCoeff * float64(operation.AvgBloodLoss)
+		}
+
+		totalBloodLoss += operationLoss
+	}
+
+	return totalBloodLoss, nil
 }
 
-// POST /api/logout - деавторизация (заглушка)
-func (h *Handler) LogoutUser(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "Заглушка",
-	})
-}
+// calculateBloodLossByNadler - расчет кровопотери по формуле Надлера
+func (h *Handler) calculateBloodLossByNadler(heightCm, weightKg float64, hbBefore, hbAfter int, durationHours, bloodLossCoeff float64) (float64, error) {
+	if heightCm <= 0 || weightKg <= 0 {
+		return 0, fmt.Errorf("рост и вес должны быть положительными числами")
+	}
+	if hbBefore <= 0 || hbAfter < 0 {
+		return 0, fmt.Errorf("гемоглобин должен быть положительным числом")
+	}
+	if hbAfter >= hbBefore {
+		return 0, fmt.Errorf("гемоглобин после операции должен быть меньше чем до операции")
+	}
+	if durationHours < 0 {
+		return 0, fmt.Errorf("длительность операции не может быть отрицательной")
+	}
 
-func (h *Handler) getCurrentUserID(ctx *gin.Context) int {
-	return 2
+	heightM := heightCm / 100.0
+	bv := (0.3669*math.Pow(heightM, 3) + 0.03219*weightKg + 0.6041) * 1000
+
+	hbDrop := float64(hbBefore - hbAfter)
+	baseBloodLoss := bv * (hbDrop / float64(hbBefore))
+
+	timeFactor := 1.0 + (bloodLossCoeff * durationHours)
+
+	totalBloodLoss := baseBloodLoss * timeFactor
+
+	return math.Round(totalBloodLoss), nil
 }
 
 // Вспомогательные функции для работы с изображениями

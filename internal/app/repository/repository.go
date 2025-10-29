@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"blood_loss_calc/internal/app/redis"
 	"context"
 	"fmt"
 	"io"
@@ -17,10 +18,11 @@ import (
 type Repository struct {
 	db         *gorm.DB
 	minio      *minio.Client
+	redis      *redis.Client
 	bucketName string
 }
 
-func New(dsn string) (*Repository, error) {
+func New(dsn string, redisHost, redisPort string) (*Repository, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
@@ -42,6 +44,12 @@ func New(dsn string) (*Repository, error) {
 		return nil, fmt.Errorf("failed to create Minio client: %w", err)
 	}
 
+	// Инициализируем Redis
+	redisClient, err := redis.New(redisHost, redisPort)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init redis: %w", err)
+	}
+
 	// Проверяем доступность бакета
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -58,6 +66,7 @@ func New(dsn string) (*Repository, error) {
 	return &Repository{
 		db:         db,
 		minio:      minioClient,
+		redis:      redisClient,
 		bucketName: bucketName,
 	}, nil
 }
@@ -110,4 +119,13 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+// Добавляем методы для работы с blacklist
+func (r *Repository) AddTokenToBlacklist(ctx context.Context, token string, expiration time.Duration) error {
+	return r.redis.AddToBlacklist(ctx, token, expiration)
+}
+
+func (r *Repository) IsTokenInBlacklist(ctx context.Context, token string) (bool, error) {
+	return r.redis.IsInBlacklist(ctx, token)
 }

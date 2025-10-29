@@ -316,3 +316,35 @@ func (r *Repository) UpdateUser(userID int, updates map[string]interface{}) erro
 		Where("user_id = ?", userID).
 		Updates(updates).Error
 }
+
+// GetUserBloodlosscalcs возвращает заявки пользователя с фильтрацией
+func (r *Repository) GetUserBloodlosscalcs(userID int, status string, dateFrom, dateTo *time.Time) ([]ds.Bloodlosscalc, error) {
+	var bloodlosscalcs []ds.Bloodlosscalc
+
+	query := r.db.
+		Preload("Creator", func(db *gorm.DB) *gorm.DB {
+			return db.Select("user_id, username")
+		}).
+		Preload("Moderator", func(db *gorm.DB) *gorm.DB {
+			return db.Select("user_id, username")
+		}).
+		Where("creator_id = ? AND status != ?", userID, "удален")
+
+	// Дополнительная фильтрация по статусу если указана
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	if dateFrom != nil {
+		query = query.Where("created_at >= ?", dateFrom)
+	}
+
+	if dateTo != nil {
+		query = query.Where("created_at <= ?", dateTo)
+	}
+
+	query = query.Order("created_at DESC")
+
+	err := query.Find(&bloodlosscalcs).Error
+	return bloodlosscalcs, err
+}

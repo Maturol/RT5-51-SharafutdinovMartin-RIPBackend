@@ -1,0 +1,171 @@
+basePath: /api
+definitions:
+  handler.AuthRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handler.AuthResponse:
+    properties:
+      expires_at:
+        type: string
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/handler.UserResponse'
+    type: object
+  handler.BloodlosscalcResponse:
+    description: Ответ со списком заявок
+    properties:
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      creator_login:
+        type: string
+      formed_at:
+        type: string
+      id:
+        type: integer
+      moderator_login:
+        type: string
+      patient_height:
+        type: number
+      patient_weight:
+        type: integer
+      service_count:
+        type: integer
+      status:
+        type: string
+    type: object
+  handler.ErrorResponse:
+    description: Стандартный ответ с ошибкой
+    properties:
+      description:
+        example: Error description
+        type: string
+      status:
+        example: error
+        type: string
+    type: object
+  handler.MessageResponse:
+    description: Стандартный ответ с сообщением
+    properties:
+      message:
+        example: Success message
+        type: string
+    type: object
+  handler.UserResponse:
+    properties:
+      is_moderator:
+        type: boolean
+      user_id:
+        type: integer
+      username:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@bloodloss.local
+    name: API Support
+    url: http://localhost:8080
+  description: API для расчета кровопотери при операциях
+  title: Blood Loss Calculator API
+  version: "1.0"
+paths:
+  /auth:
+    post:
+      consumes:
+      - application/json
+      description: Вход в систему с получением JWT токена
+      parameters:
+      - description: Данные для входа
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/handler.AuthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Аутентификация пользователя
+      tags:
+      - auth
+  /bloodlosscalcs:
+    get:
+      description: Получение списка заявок
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.BloodlosscalcResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить заявки
+      tags:
+      - bloodlosscalcs
+  /logout:
+    post:
+      description: Завершение сессии пользователя
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.MessageResponse'
+      security:
+      - BearerAuth: []
+      summary: Выход из системы
+      tags:
+      - auth
+  /user:
+    get:
+      description: Получение данных текущего пользователя
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.UserResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Получить профиль пользователя
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT токен в формате: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
