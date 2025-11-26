@@ -355,17 +355,17 @@ func (h *Handler) GetBloodlosscalcByID(ctx *gin.Context) {
 	}
 
 	type BloodlosscalcDetailResponse struct {
-		ID            int      `json:"id"`
-		Status        string   `json:"status"`
-		CreatedAt     string   `json:"created_at"`
-		FormedAt      *string  `json:"formed_at"`
-		CompletedAt   *string  `json:"completed_at"`
-		PatientHeight *float64 `json:"patient_height"`
-		PatientWeight *int     `json:"patient_weight"`
-		Creator       string   `json:"creator"`
-		Moderator     *string  `json:"moderator"`
-		Items         []BLItem `json:"items"`
-		ServiceCount  *int     `json:"service_count,omitempty"`
+		ID              int      `json:"id"`
+		Status          string   `json:"status"`
+		CreatedAt       string   `json:"created_at"`
+		FormedAt        *string  `json:"formed_at"`
+		CompletedAt     *string  `json:"completed_at"`
+		PatientHeight   *float64 `json:"patient_height"`
+		PatientWeight   *int     `json:"patient_weight"`
+		Creator         string   `json:"creator"`
+		Moderator       *string  `json:"moderator"`
+		Items           []BLItem `json:"items"`
+		CalculatedCount *int     `json:"calculated_count,omitempty"`
 	}
 
 	response := BloodlosscalcDetailResponse{
@@ -386,8 +386,8 @@ func (h *Handler) GetBloodlosscalcByID(ctx *gin.Context) {
 	}
 
 	if bl.Status == "завершена" {
-		count := int(h.Repository.CountOperationsInBloodlosscalc(bl.ID))
-		response.ServiceCount = &count
+		count := int(h.Repository.CountCalculatedOperationsInBloodlosscalc(bl.ID))
+		response.CalculatedCount = &count
 	}
 
 	ctx.JSON(http.StatusOK, response)
@@ -664,16 +664,16 @@ func (h *Handler) GetBloodlosscalcs(ctx *gin.Context) {
 	}
 
 	type BloodlosscalcResponse struct {
-		ID             int      `json:"id"`
-		Status         string   `json:"status"`
-		CreatedAt      string   `json:"created_at"`
-		FormedAt       *string  `json:"formed_at"`
-		CompletedAt    *string  `json:"completed_at"`
-		PatientHeight  *float64 `json:"patient_height"`
-		PatientWeight  *int     `json:"patient_weight"`
-		CreatorLogin   string   `json:"creator_login"`
-		ModeratorLogin *string  `json:"moderator_login"`
-		ServiceCount   *int     `json:"service_count,omitempty"`
+		ID              int      `json:"id"`
+		Status          string   `json:"status"`
+		CreatedAt       string   `json:"created_at"`
+		FormedAt        *string  `json:"formed_at"`
+		CompletedAt     *string  `json:"completed_at"`
+		PatientHeight   *float64 `json:"patient_height"`
+		PatientWeight   *int     `json:"patient_weight"`
+		CreatorLogin    string   `json:"creator_login"`
+		ModeratorLogin  *string  `json:"moderator_login"`
+		CalculatedCount *int     `json:"calculated_count,omitempty"`
 	}
 
 	var response []BloodlosscalcResponse
@@ -695,8 +695,8 @@ func (h *Handler) GetBloodlosscalcs(ctx *gin.Context) {
 		}
 
 		if bl.Status == "завершена" {
-			count := int(h.Repository.CountOperationsInBloodlosscalc(bl.ID))
-			item.ServiceCount = &count
+			count := int(h.Repository.CountCalculatedOperationsInBloodlosscalc(bl.ID))
+			item.CalculatedCount = &count
 		}
 
 		response = append(response, item)

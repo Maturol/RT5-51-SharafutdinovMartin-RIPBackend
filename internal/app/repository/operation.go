@@ -123,7 +123,16 @@ func (r *Repository) OperationExistsInBloodlosscalc(bloodlosscalcID, operationID
 	return count > 0
 }
 
-// Подсчет количества операций в заявке
+// CountCalculatedOperationsInBloodlosscalc подсчитывает операции с выполненным расчетом
+func (r *Repository) CountCalculatedOperationsInBloodlosscalc(bloodlosscalcID int) int64 {
+	var count int64
+	r.db.Model(&ds.BloodlosscalcOperation{}).
+		Where("bloodlosscalc_id = ? AND total_blood_loss IS NOT NULL", bloodlosscalcID).
+		Count(&count)
+	return count
+}
+
+// CountOperationsInBloodlosscalc оставить для других случаев
 func (r *Repository) CountOperationsInBloodlosscalc(bloodlosscalcID int) int64 {
 	var count int64
 	r.db.Model(&ds.BloodlosscalcOperation{}).
