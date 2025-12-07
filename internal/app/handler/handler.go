@@ -74,6 +74,7 @@ func (h *Handler) RegisterHandler(router *gin.Engine) {
 		public.POST("/register", h.RegisterUser)
 		public.GET("/operations", h.GetOperations)
 		public.GET("/operations/:id", h.GetOperation)
+		public.GET("/operationcart", h.GetOperationCartInfo)
 	}
 
 	// Защищенные routes (требуют JWT)
@@ -86,7 +87,6 @@ func (h *Handler) RegisterHandler(router *gin.Engine) {
 		auth.POST("/logout", h.LogoutUser)
 
 		// Cart & user bloodlosscalcs (доступны всем авторизованным)
-		auth.GET("/operationcart", h.GetOperationCartInfo)
 		auth.POST("/operations/:id/add_to_bloodlosscalc", h.AddOperationToBloodlosscalc)
 		auth.GET("/bloodlosscalcs", h.GetBloodlosscalcs)
 		auth.GET("/bloodlosscalcs/:id", h.GetBloodlosscalcByID)

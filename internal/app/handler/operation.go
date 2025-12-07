@@ -1001,9 +1001,18 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 // GET /api/operationcart - иконка корзины
 func (h *Handler) GetOperationCartInfo(ctx *gin.Context) {
 	userID := h.getCurrentUserID(ctx)
+	if userID == 0 {
+		// Если пользователь не авторизован, возвращаем пустые данные
+		ctx.JSON(http.StatusOK, gin.H{
+			"current_request_id": 0,
+			"service_count":      0,
+		})
+		return
+	}
 
 	currentRequest, err := h.Repository.GetCurrentBloodlosscalc(userID)
 	if err != nil {
+		// Если нет активной заявки, возвращаем нулевые значения
 		ctx.JSON(http.StatusOK, gin.H{
 			"current_request_id": 0,
 			"service_count":      0,
