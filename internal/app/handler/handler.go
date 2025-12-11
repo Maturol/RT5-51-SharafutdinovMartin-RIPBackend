@@ -7,41 +7,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// ErrorResponse структура для ошибок API
-// @Description Стандартный ответ с ошибкой
-type ErrorResponse struct {
-	Status      string `json:"status" example:"error"`
-	Description string `json:"description" example:"Error description"`
-}
-
-// MessageResponse структура для простых сообщений
-// @Description Стандартный ответ с сообщением
-type MessageResponse struct {
-	Message string `json:"message" example:"Success message"`
-}
-
-// SuccessResponse структура для успешных операций
-// @Description Стандартный успешный ответ
-type SuccessResponse struct {
-	Status string      `json:"status" example:"success"`
-	Data   interface{} `json:"data"`
-}
-
-// BloodlosscalcResponse структура для ответа с заявками
-// @Description Ответ со списком заявок
-type BloodlosscalcResponse struct {
-	ID             int      `json:"id"`
-	Status         string   `json:"status"`
-	CreatedAt      string   `json:"created_at"`
-	FormedAt       *string  `json:"formed_at"`
-	CompletedAt    *string  `json:"completed_at"`
-	PatientHeight  *float64 `json:"patient_height"`
-	PatientWeight  *int     `json:"patient_weight"`
-	CreatorLogin   string   `json:"creator_login"`
-	ModeratorLogin *string  `json:"moderator_login"`
-	ServiceCount   *int     `json:"service_count,omitempty"`
-}
-
 type Handler struct {
 	Repository *repository.Repository
 }
@@ -55,6 +20,7 @@ func NewHandler(r *repository.Repository) *Handler {
 func (h *Handler) RegisterHandler(router *gin.Engine) {
 	// CORS middleware
 	router.Use(func(ctx *gin.Context) {
+		ctx.Header("Access-Control-Allow-Origin", "http://localhost:3000")
 		ctx.Header("Access-Control-Allow-Origin", "*")
 		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")

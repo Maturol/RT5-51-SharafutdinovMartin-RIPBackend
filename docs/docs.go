@@ -10,17 +10,13 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {
-            "name": "API Support",
-            "url": "http://localhost:8080",
-            "email": "support@bloodloss.local"
-        },
+        "contact": {},
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth": {
+        "/api/auth": {
             "post": {
                 "description": "Вход в систему с получением JWT токена",
                 "consumes": [
@@ -30,7 +26,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "Аутентификация"
                 ],
                 "summary": "Аутентификация пользователя",
                 "parameters": [
@@ -66,21 +62,190 @@ const docTemplate = `{
                 }
             }
         },
-        "/bloodlosscalcs": {
+        "/api/bloodlosscalc_operations": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Обновление данных операции (гемоглобин, длительность и т.д.)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Операции в заявке"
+                ],
+                "summary": "Обновить операцию в заявке",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки",
+                        "name": "bloodlosscalc_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID операции",
+                        "name": "operation_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Новые данные операции",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateOperationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Не автор заявки или не черновик",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Удаление операции из заявки (только для черновиков)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Операции в заявке"
+                ],
+                "summary": "Удалить операцию из заявки",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки",
+                        "name": "bloodlosscalc_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "ID операции",
+                        "name": "operation_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Не автор заявки или не черновик",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/bloodlosscalcs": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Получение списка заявок",
+                "description": "Получение списка заявок текущего пользователя с фильтрацией",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "bloodlosscalcs"
+                    "Заявки"
                 ],
-                "summary": "Получить заявки",
+                "summary": "Получить заявки пользователя",
+                "parameters": [
+                    {
+                        "enum": [
+                            "черновик",
+                            "сформирована",
+                            "завершена",
+                            "удален"
+                        ],
+                        "type": "string",
+                        "description": "Фильтр по статусу",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата от (YYYY-MM-DD)",
+                        "name": "date_from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Дата до (YYYY-MM-DD)",
+                        "name": "date_to",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -100,16 +265,262 @@ const docTemplate = `{
                 }
             }
         },
-        "/logout": {
+        "/api/bloodlosscalcs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Получение детальной информации о заявке со списком операций",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Заявки"
+                ],
+                "summary": "Получить заявку по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.BloodlosscalcDetailResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Нет доступа к заявке",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Изменение роста и веса пациента в заявке",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Заявки"
+                ],
+                "summary": "Обновить данные заявки",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новые данные пациента",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateBloodlosscalcRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Не автор заявки",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Логическое удаление заявки (статус → \"удален\")",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Заявки"
+                ],
+                "summary": "Удалить заявку",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Не автор заявки",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/bloodlosscalcs/{id}/form": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Перевод заявки из статуса \"черновик\" в \"сформирована\"",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Заявки"
+                ],
+                "summary": "Сформировать заявку",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID заявки",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Не все данные заполнены",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Не автор заявки",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/logout": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Завершение сессии пользователя",
+                "description": "Завершение сессии пользователя, токен добавляется в blacklist",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
-                    "auth"
+                    "Аутентификация"
                 ],
                 "summary": "Выход из системы",
                 "responses": {
@@ -118,23 +529,261 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/handler.MessageResponse"
                         }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
                     }
                 }
             }
         },
-        "/user": {
+        "/api/operationcart": {
+            "get": {
+                "description": "Получение ID текущей заявки и количества услуг в ней",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Корзина"
+                ],
+                "summary": "Получить информацию о корзине",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.CartInfoResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operations": {
+            "get": {
+                "description": "Получение списка операций с возможностью фильтрации",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Операции"
+                ],
+                "summary": "Получить список операций",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Фильтр по названию операции",
+                        "name": "title",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "активна",
+                            "неактивна"
+                        ],
+                        "type": "string",
+                        "description": "Фильтр по статусу",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.OperationsListResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operations/{id}": {
+            "get": {
+                "description": "Получение детальной информации об операции",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Операции"
+                ],
+                "summary": "Получить операцию по ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID операции",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.Operation"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/operations/{id}/add_to_bloodlosscalc": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Добавление операции в текущую заявку пользователя (корзину)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Операции"
+                ],
+                "summary": "Добавить операцию в заявку",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID операции",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Дополнительные данные (рост, вес, показатели крови)",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/handler.AddToCartRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.AddToCartResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Операция уже в заявке",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/register": {
+            "post": {
+                "description": "Создание учетной записи пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Аутентификация"
+                ],
+                "summary": "Регистрация нового пользователя",
+                "parameters": [
+                    {
+                        "description": "Данные для регистрации",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handler.RegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Пользователь уже существует",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/user": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Получение данных текущего пользователя",
+                "description": "Получение данных текущего авторизованного пользователя",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "users"
+                    "Пользователь"
                 ],
                 "summary": "Получить профиль пользователя",
                 "responses": {
@@ -151,10 +800,156 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Изменение данных пользователя (имя, пароль)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Пользователь"
+                ],
+                "summary": "Обновить профиль пользователя",
+                "parameters": [
+                    {
+                        "description": "Новые данные пользователя",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.MessageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Имя пользователя уже занято",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
             }
         }
     },
     "definitions": {
+        "handler.AddToCartRequest": {
+            "type": "object",
+            "properties": {
+                "hb_after": {
+                    "type": "integer",
+                    "example": 120
+                },
+                "hb_before": {
+                    "type": "integer",
+                    "example": 140
+                },
+                "patient_height": {
+                    "type": "number",
+                    "example": 1.75
+                },
+                "patient_weight": {
+                    "type": "integer",
+                    "example": 70
+                },
+                "surgery_duration": {
+                    "type": "number",
+                    "example": 2.5
+                },
+                "total_blood_loss": {
+                    "type": "integer",
+                    "example": 300
+                }
+            }
+        },
+        "handler.AddToCartResponse": {
+            "type": "object",
+            "properties": {
+                "bloodlosscalc": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "example": 5
+                        },
+                        "patient_height": {
+                            "type": "number",
+                            "example": 1.75
+                        },
+                        "patient_weight": {
+                            "type": "integer",
+                            "example": 70
+                        },
+                        "status": {
+                            "type": "string",
+                            "example": "черновик"
+                        }
+                    }
+                },
+                "is_new_request": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Operation added to bloodlosscalc successfully"
+                },
+                "operation": {
+                    "type": "object",
+                    "properties": {
+                        "avg_blood_loss": {
+                            "type": "integer",
+                            "example": 150
+                        },
+                        "blood_loss_coeff": {
+                            "type": "number",
+                            "example": 0.04
+                        },
+                        "id": {
+                            "type": "integer",
+                            "example": 1
+                        },
+                        "image_url": {
+                            "type": "string"
+                        },
+                        "title": {
+                            "type": "string",
+                            "example": "Аппендэктомия"
+                        }
+                    }
+                },
+                "service_count": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
         "handler.AuthRequest": {
             "type": "object",
             "required": [
@@ -163,10 +958,12 @@ const docTemplate = `{
             ],
             "properties": {
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "admin123"
                 },
                 "username": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "admin"
                 }
             }
         },
@@ -174,49 +971,152 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "expires_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2024-12-11T14:30:00Z"
                 },
                 "token": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
                 },
                 "user": {
                     "$ref": "#/definitions/handler.UserResponse"
                 }
             }
         },
-        "handler.BloodlosscalcResponse": {
-            "description": "Ответ со списком заявок",
+        "handler.BLItem": {
             "type": "object",
             "properties": {
+                "avg_blood_loss": {
+                    "type": "integer",
+                    "example": 150
+                },
+                "blood_loss_coeff": {
+                    "type": "number",
+                    "example": 0.04
+                },
+                "hb_after": {
+                    "type": "integer",
+                    "example": 120
+                },
+                "hb_before": {
+                    "type": "integer",
+                    "example": 140
+                },
+                "operation_image": {
+                    "type": "string"
+                },
+                "operation_title": {
+                    "type": "string",
+                    "example": "Аппендэктомия"
+                },
+                "surgery_duration": {
+                    "type": "number",
+                    "example": 2.5
+                },
+                "total_blood_loss": {
+                    "type": "integer",
+                    "example": 300
+                }
+            }
+        },
+        "handler.BloodlosscalcDetailResponse": {
+            "type": "object",
+            "properties": {
+                "calculated_count": {
+                    "type": "integer"
+                },
                 "completed_at": {
                     "type": "string"
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "11.12.2024"
                 },
-                "creator_login": {
-                    "type": "string"
+                "creator": {
+                    "type": "string",
+                    "example": "admin"
                 },
                 "formed_at": {
                     "type": "string"
                 },
                 "id": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.BLItem"
+                    }
+                },
+                "moderator": {
+                    "type": "string"
+                },
+                "patient_height": {
+                    "type": "number",
+                    "example": 1.75
+                },
+                "patient_weight": {
+                    "type": "integer",
+                    "example": 70
+                },
+                "status": {
+                    "type": "string",
+                    "example": "черновик"
+                }
+            }
+        },
+        "handler.BloodlosscalcResponse": {
+            "type": "object",
+            "properties": {
+                "calculated_count": {
                     "type": "integer"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "11.12.2024"
+                },
+                "creator_login": {
+                    "type": "string",
+                    "example": "admin"
+                },
+                "formed_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 5
                 },
                 "moderator_login": {
                     "type": "string"
                 },
                 "patient_height": {
-                    "type": "number"
+                    "type": "number",
+                    "example": 1.75
                 },
                 "patient_weight": {
-                    "type": "integer"
-                },
-                "service_count": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 70
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "черновик"
+                }
+            }
+        },
+        "handler.CartInfoResponse": {
+            "type": "object",
+            "properties": {
+                "current_request_id": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "service_count": {
+                    "type": "integer",
+                    "example": 3
                 }
             }
         },
@@ -226,7 +1126,7 @@ const docTemplate = `{
             "properties": {
                 "description": {
                     "type": "string",
-                    "example": "Error description"
+                    "example": "Ошибка авторизации"
                 },
                 "status": {
                     "type": "string",
@@ -240,7 +1140,144 @@ const docTemplate = `{
             "properties": {
                 "message": {
                     "type": "string",
-                    "example": "Success message"
+                    "example": "Операция выполнена успешно"
+                }
+            }
+        },
+        "handler.Operation": {
+            "type": "object",
+            "properties": {
+                "avg_blood_loss": {
+                    "type": "integer",
+                    "example": 150
+                },
+                "blood_loss_coeff": {
+                    "type": "number",
+                    "example": 0.04
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Удаление червеобразного отростка"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "image_url": {
+                    "type": "string",
+                    "example": "http://localhost:9000/blood-loss-images/appendectomy.jpg"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "активна"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Аппендэктомия"
+                }
+            }
+        },
+        "handler.OperationsListResponse": {
+            "type": "object",
+            "properties": {
+                "operations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.Operation"
+                    }
+                }
+            }
+        },
+        "handler.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "password123"
+                },
+                "username": {
+                    "type": "string",
+                    "maxLength": 32,
+                    "minLength": 3,
+                    "example": "ivanov"
+                }
+            }
+        },
+        "handler.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "Пользователь успешно зарегистрирован"
+                },
+                "user": {
+                    "type": "object",
+                    "properties": {
+                        "is_moderator": {
+                            "type": "boolean",
+                            "example": false
+                        },
+                        "user_id": {
+                            "type": "integer",
+                            "example": 1
+                        },
+                        "username": {
+                            "type": "string",
+                            "example": "ivanov"
+                        }
+                    }
+                }
+            }
+        },
+        "handler.UpdateBloodlosscalcRequest": {
+            "type": "object",
+            "properties": {
+                "patient_height": {
+                    "type": "number",
+                    "example": 1.8
+                },
+                "patient_weight": {
+                    "type": "integer",
+                    "example": 75
+                }
+            }
+        },
+        "handler.UpdateOperationRequest": {
+            "type": "object",
+            "properties": {
+                "hb_after": {
+                    "type": "integer",
+                    "example": 110
+                },
+                "hb_before": {
+                    "type": "integer",
+                    "example": 130
+                },
+                "surgery_duration": {
+                    "type": "number",
+                    "example": 3
+                },
+                "total_blood_loss": {
+                    "type": "integer",
+                    "example": 350
+                }
+            }
+        },
+        "handler.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string",
+                    "example": "new_password123"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "new_username"
                 }
             }
         },
@@ -248,20 +1285,23 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "is_moderator": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
                 },
                 "user_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1
                 },
                 "username": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "admin"
                 }
             }
         }
     },
     "securityDefinitions": {
         "BearerAuth": {
-            "description": "JWT токен в формате: \"Bearer {token}\"",
+            "description": "JWT токен в формате \"Bearer {token}\"",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
@@ -271,12 +1311,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "1.0.0",
 	Host:             "localhost:8080",
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "Blood Loss Calculator API",
-	Description:      "API для расчета кровопотери при операциях",
+	Description:      "Стандартный успешный ответ",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }
