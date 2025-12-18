@@ -17,6 +17,8 @@ services:
       - DB_PASS=12345
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - ASYNC_SERVICE_URL=http://async-service:8000
+      - ASYNC_SERVICE_API_KEY=secret_key_12345
     networks: 
       - app-network
     restart: unless-stopped
@@ -24,6 +26,25 @@ services:
       - minio
       - postgres
       - redis
+
+  async-service:
+    build:
+      context: ../RT5-51-Sharafutdinov-Blood-Loss-Calculation-Async-Service/async_service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - MAIN_SERVICE_URL=http://blood-loss-calc:8080
+      - API_KEY=secret_key_12345
+      - DJANGO_SECRET_KEY=django-insecure-async-key-12345
+      - DJANGO_DEBUG=True
+    volumes:
+      - ../RT5-51-Sharafutdinov-Blood-Loss-Calculation-Async-Service/async_service:/app
+    networks: 
+      - app-network
+    restart: unless-stopped
+    depends_on:
+      - blood-loss-calc
 
   minio:
     image: minio/minio:latest
@@ -95,6 +116,7 @@ volumes:
   minio_data:
   postgres_data:
   redis_data:
+  django_data:
 
 networks:  
   app-network:

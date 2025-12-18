@@ -41,6 +41,7 @@ func (h *Handler) RegisterHandler(router *gin.Engine) {
 		public.GET("/operations", h.GetOperations)
 		public.GET("/operations/:id", h.GetOperation)
 		public.GET("/operationcart", h.GetOperationCartInfo)
+		router.POST("/api/v1/update-calculation-result", h.UpdateCalculationResult)
 	}
 
 	// Защищенные routes (требуют JWT)

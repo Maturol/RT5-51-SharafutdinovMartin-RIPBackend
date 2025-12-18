@@ -15,7 +15,9 @@ package handler
 
 import (
 	"blood_loss_calc/internal/app/ds"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -27,6 +29,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+)
+
+const (
+	AsyncServiceURL    = "http://async-service:8000"
+	AsyncServiceAPIKey = "secret_key_12345"
 )
 
 // ErrorResponse структура для ошибок API
@@ -47,6 +55,27 @@ type MessageResponse struct {
 type SuccessResponse struct {
 	Status string      `json:"status" example:"success"`
 	Data   interface{} `json:"data"`
+}
+
+// Структуры для асинхронного сервиса
+type AsyncCalcRequest struct {
+	BloodlosscalcID int      `json:"bloodlosscalc_id"`
+	OperationID     int      `json:"operation_id"`
+	PatientHeight   float64  `json:"patient_height"`
+	PatientWeight   int      `json:"patient_weight"`
+	HbBefore        *int     `json:"hb_before,omitempty"`
+	HbAfter         *int     `json:"hb_after,omitempty"`
+	SurgeryDuration *float64 `json:"surgery_duration,omitempty"`
+	BloodLossCoeff  float64  `json:"blood_loss_coeff"`
+	AvgBloodLoss    int      `json:"avg_blood_loss"`
+}
+
+type UpdateCalcResultRequest struct {
+	BloodlosscalcID int    `json:"bloodlosscalc_id" binding:"required"`
+	OperationID     int    `json:"operation_id" binding:"required"`
+	TotalBloodLoss  int    `json:"total_blood_loss" binding:"required"`
+	CalculationID   string `json:"calculation_id" binding:"required"`
+	APIKey          string `json:"api_key" binding:"required"`
 }
 
 type OperationCard struct {
@@ -976,7 +1005,17 @@ func (h *Handler) FormBloodlosscalc(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Заявка сформирована"})
 }
 
-// PUT /api/bloodlosscalc/:id/complete - завершение заявки (модератор)
+// @Summary Завершить заявку (асинхронно)
+// @Description Запуск асинхронного расчета кровопотери
+// @Tags Модератор
+// @Accept json
+// @Produce json
+// @Param id path int true "ID заявки"
+// @Success 200 {object} MessageResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /api/bloodlosscalcs/{id}/complete [put]
 func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -984,8 +1023,6 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 		h.errorHandler(ctx, http.StatusBadRequest, err)
 		return
 	}
-
-	// Middleware уже проверил что пользователь модератор
 
 	bloodlosscalc, err := h.Repository.GetBloodlosscalcByID(id)
 	if err != nil {
@@ -1004,61 +1041,116 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	totalBloodLoss := 0.0
-	operationResults := make(map[int]float64)
+	// 1. Обновляем статус на "в процессе расчета"
+	err = h.Repository.UpdateBloodlosscalcStatus(id, "в процессе расчета", nil, nil)
+	if err != nil {
+		h.errorHandler(ctx, http.StatusInternalServerError, err)
+		return
+	}
 
+	// 2. Запускаем асинхронные расчеты для каждой операции
 	for _, item := range items {
 		operation, err := h.Repository.GetOperation(item.OperationID)
 		if err != nil {
 			continue
 		}
 
-		var operationLoss float64
-
+		// Если уже есть расчет, пропускаем
 		if item.TotalBloodLoss != nil {
-			operationLoss = float64(*item.TotalBloodLoss)
-		} else {
-			if item.HbBefore == nil || item.HbAfter == nil || item.SurgeryDuration == nil {
-				operationLoss = operation.BloodLossCoeff * float64(operation.AvgBloodLoss)
-			} else {
-				calculatedLoss, err := h.calculateBloodLossByNadler(
-					*bloodlosscalc.PatientHeight,
-					float64(*bloodlosscalc.PatientWeight),
-					*item.HbBefore,
-					*item.HbAfter,
-					*item.SurgeryDuration,
-					operation.BloodLossCoeff,
-				)
-				if err != nil {
-					operationLoss = operation.BloodLossCoeff * float64(operation.AvgBloodLoss)
-				} else {
-					operationLoss = calculatedLoss
-				}
-			}
-
-			calculatedLossInt := int(math.Round(operationLoss))
-			err = h.Repository.UpdateBloodlosscalcOperationTotalLoss(bloodlosscalc.ID, item.OperationID, calculatedLossInt)
-			if err != nil {
-				h.errorHandler(ctx, http.StatusInternalServerError, fmt.Errorf("failed to save calculated blood loss: %v", err))
-				return
-			}
+			continue
 		}
 
-		operationResults[item.OperationID] = operationLoss
-		totalBloodLoss += operationLoss
+		// Отправляем в асинхронный сервис
+		go h.startAsyncCalculation(id, item.OperationID, bloodlosscalc, item, operation)
 	}
 
-	now := time.Now()
-	err = h.Repository.UpdateBloodlosscalcStatus(id, "завершена", nil, &now)
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":          "Расчет кровопотери запущен",
+		"operations_count": len(items),
+		"note":             "Результаты будут через 5-10 секунд",
+		"new_status":       "в процессе расчета",
+	})
+}
+
+// Вспомогательный метод для асинхронного расчета
+func (h *Handler) startAsyncCalculation(bloodlosscalcID, operationID int,
+	bloodlosscalc ds.Bloodlosscalc, item ds.BloodlosscalcOperation, operation ds.Operation) {
+
+	req := AsyncCalcRequest{
+		BloodlosscalcID: bloodlosscalcID,
+		OperationID:     operationID,
+		PatientHeight:   *bloodlosscalc.PatientHeight,
+		PatientWeight:   *bloodlosscalc.PatientWeight,
+		HbBefore:        item.HbBefore,
+		HbAfter:         item.HbAfter,
+		SurgeryDuration: item.SurgeryDuration,
+		BloodLossCoeff:  operation.BloodLossCoeff,
+		AvgBloodLoss:    operation.AvgBloodLoss,
+	}
+
+	jsonData, _ := json.Marshal(req)
+
+	http.Post(
+		fmt.Sprintf("%s/api/v1/calculate-blood-loss", AsyncServiceURL),
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+}
+
+// @Summary Обновить результат расчета (callback от async-service)
+// @Description Прием результата от асинхронного сервиса
+// @Tags Асинхронный сервис
+// @Accept json
+// @Produce json
+// @Param request body UpdateCalcResultRequest true "Результат расчета"
+// @Success 200 {object} MessageResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /api/v1/update-calculation-result [post]
+func (h *Handler) UpdateCalculationResult(ctx *gin.Context) {
+	var req UpdateCalcResultRequest
+	if err := ctx.BindJSON(&req); err != nil {
+		h.errorHandler(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	// Проверка API ключа
+	if req.APIKey != AsyncServiceAPIKey {
+		h.errorHandler(ctx, http.StatusUnauthorized, fmt.Errorf("неверный API ключ"))
+		return
+	}
+
+	// Обновляем результат в БД
+	err := h.Repository.UpdateBloodlosscalcOperationTotalLoss(
+		req.BloodlosscalcID,
+		req.OperationID,
+		req.TotalBloodLoss,
+	)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
+	// Проверяем, все ли операции рассчитаны
+	calculatedCount := h.Repository.CountCalculatedOperationsInBloodlosscalc(req.BloodlosscalcID)
+	totalCount := h.Repository.CountOperationsInBloodlosscalc(req.BloodlosscalcID)
+
+	// Если все операции рассчитаны, завершаем заявку
+	if calculatedCount == totalCount && totalCount > 0 {
+		now := time.Now()
+		err = h.Repository.UpdateBloodlosscalcStatus(req.BloodlosscalcID, "завершена", nil, &now)
+		if err != nil {
+			logrus.Errorf("Ошибка обновления статуса: %v", err)
+		}
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
-		"message":           "Заявка завершена",
-		"total_blood_loss":  math.Round(totalBloodLoss),
-		"operation_results": operationResults,
+		"message":          "Результат обновлен",
+		"bloodlosscalc_id": req.BloodlosscalcID,
+		"operation_id":     req.OperationID,
+		"total_blood_loss": req.TotalBloodLoss,
+		"calculated":       calculatedCount,
+		"total":            totalCount,
 	})
 }
 
