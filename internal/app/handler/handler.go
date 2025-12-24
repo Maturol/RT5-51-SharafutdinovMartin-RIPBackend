@@ -20,7 +20,6 @@ func NewHandler(r *repository.Repository) *Handler {
 func (h *Handler) RegisterHandler(router *gin.Engine) {
 	// CORS middleware
 	router.Use(func(ctx *gin.Context) {
-		ctx.Header("Access-Control-Allow-Origin", "http://localhost:3000")
 		ctx.Header("Access-Control-Allow-Origin", "*")
 		ctx.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		ctx.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -69,6 +68,7 @@ func (h *Handler) RegisterHandler(router *gin.Engine) {
 	moderator.Use(h.RequireModerator())
 	{
 		moderator.PUT("/bloodlosscalcs/:id/complete", h.CompleteBloodlosscalc)
+		moderator.PUT("/bloodlosscalcs/:id/reject", h.RejectBloodlosscalc)
 		moderator.POST("/operations", h.CreateOperation)
 		moderator.PUT("/operations/:id", h.UpdateOperation)
 		moderator.DELETE("/operations/:id", h.DeleteOperation)

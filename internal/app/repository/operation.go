@@ -251,8 +251,8 @@ func (r *Repository) UpdateBloodlosscalc(id int, updates map[string]interface{})
 		Updates(updates).Error
 }
 
-// UpdateBloodlosscalcStatus обновляет статус заявки
-func (r *Repository) UpdateBloodlosscalcStatus(id int, status string, formedAt, completedAt *time.Time) error {
+// UpdateBloodlosscalcStatus обновляет статус заявки с сохранением ID модератора
+func (r *Repository) UpdateBloodlosscalcStatus(id int, status string, formedAt, completedAt *time.Time, moderatorID *int) error {
 	updates := map[string]interface{}{
 		"status": status,
 	}
@@ -263,7 +263,11 @@ func (r *Repository) UpdateBloodlosscalcStatus(id int, status string, formedAt, 
 
 	if completedAt != nil {
 		updates["completed_at"] = completedAt
-		updates["moderator_id"] = 1 // временная заглушка
+	}
+
+	// Сохраняем ID модератора если он указан
+	if moderatorID != nil {
+		updates["moderator_id"] = moderatorID
 	}
 
 	return r.db.Model(&ds.Bloodlosscalc{}).

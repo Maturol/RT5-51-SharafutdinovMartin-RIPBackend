@@ -671,7 +671,7 @@ func (h *Handler) UploadOperationImage(ctx *gin.Context) {
 // @Tags Заявки
 // @Security BearerAuth
 // @Produce json
-// @Param status query string false "Фильтр по статусу" Enums(черновик, сформирована, завершена, удален)
+// @Param status query string false "Фильтр по статусу" Enums(черновик, сформирована, завершена, отклонена, удален)
 // @Param date_from query string false "Дата от (YYYY-MM-DD)" example:"2024-12-01"
 // @Param date_to query string false "Дата до (YYYY-MM-DD)" example:"2024-12-31"
 // @Success 200 {array} BloodlosscalcResponse
@@ -996,7 +996,7 @@ func (h *Handler) FormBloodlosscalc(ctx *gin.Context) {
 	}
 
 	now := time.Now()
-	err = h.Repository.UpdateBloodlosscalcStatus(id, "сформирована", &now, nil)
+	err = h.Repository.UpdateBloodlosscalcStatus(id, "сформирована", &now, nil, nil)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
@@ -1005,6 +1005,7 @@ func (h *Handler) FormBloodlosscalc(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"message": "Заявка сформирована"})
 }
 
+// CompleteBloodlosscalc godoc
 // @Summary Завершить заявку (асинхронно)
 // @Description Запуск асинхронного расчета кровопотери
 // @Tags Модератор
@@ -1041,14 +1042,28 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 		return
 	}
 
-	// 1. Обновляем статус на "в процессе расчета"
-	err = h.Repository.UpdateBloodlosscalcStatus(id, "в процессе расчета", nil, nil)
+	// Получаем ID текущего модератора
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		h.errorHandler(ctx, http.StatusUnauthorized, fmt.Errorf("пользователь не авторизован"))
+		return
+	}
+	moderatorID := userID.(int)
+
+	// Сохраняем модератора в заявке сразу
+	updates := map[string]interface{}{
+		"moderator_id": moderatorID,
+	}
+
+	err = h.Repository.UpdateBloodlosscalc(id, updates)
 	if err != nil {
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	// 2. Запускаем асинхронные расчеты для каждой операции
+	logrus.Infof("Модератор %d запустил расчет для заявки %d", moderatorID, id)
+
+	// Запускаем асинхронные расчеты для каждой операции
 	for _, item := range items {
 		operation, err := h.Repository.GetOperation(item.OperationID)
 		if err != nil {
@@ -1068,7 +1083,7 @@ func (h *Handler) CompleteBloodlosscalc(ctx *gin.Context) {
 		"message":          "Расчет кровопотери запущен",
 		"operations_count": len(items),
 		"note":             "Результаты будут через 5-10 секунд",
-		"new_status":       "в процессе расчета",
+		"moderator_id":     moderatorID,
 	})
 }
 
@@ -1097,6 +1112,61 @@ func (h *Handler) startAsyncCalculation(bloodlosscalcID, operationID int,
 	)
 }
 
+// RejectBloodlosscalc godoc
+// @Summary Отклонить заявку
+// @Description Отклонение заявки модератором (статус → "отклонена")
+// @Tags Модератор
+// @Security BearerAuth
+// @Accept json
+// @Produce json
+// @Param id path int true "ID заявки"
+// @Success 200 {object} MessageResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse "Требуются права модератора"
+// @Failure 404 {object} ErrorResponse
+// @Router /api/bloodlosscalcs/{id}/reject [put]
+func (h *Handler) RejectBloodlosscalc(ctx *gin.Context) {
+	idStr := ctx.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		h.errorHandler(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	bloodlosscalc, err := h.Repository.GetBloodlosscalcByID(id)
+	if err != nil {
+		h.errorHandler(ctx, http.StatusNotFound, err)
+		return
+	}
+
+	// Проверяем что заявка находится в статусе "сформирована"
+	if bloodlosscalc.Status != "сформирована" {
+		h.errorHandler(ctx, http.StatusBadRequest, fmt.Errorf("можно отклонять только сформированные заявки"))
+		return
+	}
+
+	// Получаем ID текущего модератора из JWT токена
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		h.errorHandler(ctx, http.StatusUnauthorized, fmt.Errorf("пользователь не авторизован"))
+		return
+	}
+
+	moderatorID := userID.(int)
+
+	// Обновляем статус на "отклонена" и сохраняем ID модератора
+	err = h.Repository.UpdateBloodlosscalcStatus(id, "отклонена", nil, nil, &moderatorID)
+	if err != nil {
+		h.errorHandler(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message":      "Заявка отклонена",
+		"moderator_id": moderatorID,
+	})
+}
+
 // @Summary Обновить результат расчета (callback от async-service)
 // @Description Прием результата от асинхронного сервиса
 // @Tags Асинхронный сервис
@@ -1120,28 +1190,67 @@ func (h *Handler) UpdateCalculationResult(ctx *gin.Context) {
 		return
 	}
 
-	// Обновляем результат в БД
+	// 1. Сначала обновляем результат операции
 	err := h.Repository.UpdateBloodlosscalcOperationTotalLoss(
 		req.BloodlosscalcID,
 		req.OperationID,
 		req.TotalBloodLoss,
 	)
 	if err != nil {
+		logrus.Errorf("Ошибка обновления результата операции: %v", err)
 		h.errorHandler(ctx, http.StatusInternalServerError, err)
 		return
 	}
 
-	// Проверяем, все ли операции рассчитаны
+	logrus.Infof("Обновлен результат для операции %d в заявке %d: %d мл",
+		req.OperationID, req.BloodlosscalcID, req.TotalBloodLoss)
+
+	// 2. Проверяем, все ли операции рассчитаны
 	calculatedCount := h.Repository.CountCalculatedOperationsInBloodlosscalc(req.BloodlosscalcID)
 	totalCount := h.Repository.CountOperationsInBloodlosscalc(req.BloodlosscalcID)
 
-	// Если все операции рассчитаны, завершаем заявку
+	logrus.Infof("Заявка %d: рассчитано %d из %d операций",
+		req.BloodlosscalcID, calculatedCount, totalCount)
+
+	// 3. Если все операции рассчитаны, завершаем заявку
 	if calculatedCount == totalCount && totalCount > 0 {
-		now := time.Now()
-		err = h.Repository.UpdateBloodlosscalcStatus(req.BloodlosscalcID, "завершена", nil, &now)
+		// Получаем информацию о заявке
+		bloodlosscalc, err := h.Repository.GetBloodlosscalcByID(req.BloodlosscalcID)
 		if err != nil {
-			logrus.Errorf("Ошибка обновления статуса: %v", err)
+			logrus.Errorf("Ошибка получения заявки %d: %v", req.BloodlosscalcID, err)
+			h.errorHandler(ctx, http.StatusInternalServerError, err)
+			return
 		}
+
+		// Определяем ID модератора
+		var moderatorID *int
+		if bloodlosscalc.ModeratorID != nil {
+			// Если модератор уже назначен (из CompleteBloodlosscalc)
+			moderatorID = bloodlosscalc.ModeratorID
+		} else {
+			// Иначе используем ID по умолчанию (админ)
+			defaultID := 1
+			moderatorID = &defaultID
+		}
+
+		now := time.Now()
+
+		// 4. Обновляем статус заявки на "завершена"
+		updates := map[string]interface{}{
+			"status":       "завершена",
+			"completed_at": now,
+			"moderator_id": moderatorID,
+		}
+
+		err = h.Repository.UpdateBloodlosscalc(req.BloodlosscalcID, updates)
+		if err != nil {
+			logrus.Errorf("Ошибка обновления статуса заявки %d: %v", req.BloodlosscalcID, err)
+			h.errorHandler(ctx, http.StatusInternalServerError, err)
+			return
+		}
+
+		logrus.Infof("Заявка %d успешно завершена. Статус: завершена, Модератор: %d, Дата: %v",
+			req.BloodlosscalcID, *moderatorID, now)
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
@@ -1151,6 +1260,7 @@ func (h *Handler) UpdateCalculationResult(ctx *gin.Context) {
 		"total_blood_loss": req.TotalBloodLoss,
 		"calculated":       calculatedCount,
 		"total":            totalCount,
+		"all_calculated":   calculatedCount == totalCount,
 	})
 }
 
