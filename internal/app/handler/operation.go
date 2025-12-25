@@ -74,7 +74,6 @@ type UpdateCalcResultRequest struct {
 	BloodlosscalcID int    `json:"bloodlosscalc_id" binding:"required"`
 	OperationID     int    `json:"operation_id" binding:"required"`
 	TotalBloodLoss  int    `json:"total_blood_loss" binding:"required"`
-	CalculationID   string `json:"calculation_id" binding:"required"`
 	APIKey          string `json:"api_key" binding:"required"`
 }
 
@@ -1175,7 +1174,7 @@ func (h *Handler) RejectBloodlosscalc(ctx *gin.Context) {
 // @Param request body UpdateCalcResultRequest true "Результат расчета"
 // @Success 200 {object} MessageResponse
 // @Failure 400 {object} ErrorResponse
-// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse "Неверный API ключ"
 // @Router /api/v1/update-calculation-result [post]
 func (h *Handler) UpdateCalculationResult(ctx *gin.Context) {
 	var req UpdateCalcResultRequest
@@ -1186,7 +1185,7 @@ func (h *Handler) UpdateCalculationResult(ctx *gin.Context) {
 
 	// Проверка API ключа
 	if req.APIKey != AsyncServiceAPIKey {
-		h.errorHandler(ctx, http.StatusUnauthorized, fmt.Errorf("неверный API ключ"))
+		h.errorHandler(ctx, http.StatusForbidden, fmt.Errorf("неверный API ключ"))
 		return
 	}
 
